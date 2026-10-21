@@ -5,30 +5,90 @@ import com.google.gson.GsonBuilder;
 import com.planificador.model.*;
 
 import java.io.*;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
-import java.nio.file.Paths;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 public class DataManager {
-    private static final String FILE_PATH = "planificador_datos.json";
+    private static final String FILE_NAME = "planificador_datos.json";
+    private static final String APP_DIR = "planificador-estudio";
     private static DataManager instance;
 
+    private final Path dataFile;
     private List<Subject> subjects = new ArrayList<>();
     private List<StudySession> studySessions = new ArrayList<>();
     private List<ImportantDate> importantDates = new ArrayList<>();
 
-    private DataManager() {
+    /**
+     * @param dataFile    archivo donde se guardan y leen los datos
+     * @param legacyFiles ubicaciones viejas: si dataFile no existe, se copia la modificada más recientemente
+     */
+    DataManager(Path dataFile, List<Path> legacyFiles) {
+        this.dataFile = dataFile;
+        migrateLegacyFile(legacyFiles);
         loadData();
     }
 
     public static synchronized DataManager getInstance() {
         if (instance == null) {
-            instance = new DataManager();
+            Path home = Path.of(System.getProperty("user.home"));
+            // Antes los datos se guardaban en la carpeta desde donde se abría la app.
+            List<Path> legacy = List.of(
+                    Path.of(System.getProperty("user.dir")).resolve(FILE_NAME),
+                    home.resolve(FILE_NAME));
+            instance = new DataManager(resolveDataFile(System.getenv(), home), legacy);
         }
         return instance;
+    }
+
+    /** Ubicación fija según el estándar XDG: $XDG_DATA_HOME o ~/.local/share. */
+    static Path resolveDataFile(Map<String, String> env, Path home) {
+        String xdg = env.get("XDG_DATA_HOME");
+        Path base = (xdg != null && !xdg.isBlank()) ? Path.of(xdg) : home.resolve(".local/share");
+        return base.resolve(APP_DIR).resolve(FILE_NAME);
+    }
+
+    public Path getDataFile() { return dataFile; }
+
+    private void migrateLegacyFile(List<Path> legacyFiles) {
+        if (Files.exists(dataFile)) {
+            return;
+        }
+        // Puede haber varias copias viejas (p. ej. una plantilla vacía en la carpeta del proyecto):
+        // la más reciente es la que tiene los datos en uso.
+        Path newest = null;
+        for (Path legacy : legacyFiles) {
+            if (Files.isRegularFile(legacy) && (newest == null || lastModified(legacy) > lastModified(newest))) {
+                newest = legacy;
+            }
+        }
+        if (newest == null) {
+            return;
+        }
+        try {
+            Files.createDirectories(dataFile.getParent());
+            // Se copia (no se mueve): el archivo viejo queda como respaldo.
+            Files.copy(newest, dataFile);
+            System.err.println("Datos migrados de " + newest + " a " + dataFile);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private static long lastModified(Path file) {
+        try {
+            return Files.getLastModifiedTime(file).toMillis();
+        } catch (IOException e) {
+            return Long.MIN_VALUE;
+        }
     }
 
     public List<Subject> getSubjects() { return subjects; }
@@ -72,24 +132,29 @@ public class DataManager {
     }
 
     public void saveData() {
-        try (Writer writer = new FileWriter(FILE_PATH)) {
-            Gson gson = new GsonBuilder().setPrettyPrinting().create();
-            AppData data = new AppData(subjects, studySessions, importantDates);
-            gson.toJson(data, writer);
+        try {
+            Files.createDirectories(dataFile.getParent());
+            // Se escribe a un temporal y se reemplaza: si se corta a mitad, el archivo anterior queda entero.
+            Path tmp = dataFile.resolveSibling(FILE_NAME + ".tmp");
+            try (Writer writer = Files.newBufferedWriter(tmp, StandardCharsets.UTF_8)) {
+                Gson gson = new GsonBuilder().setPrettyPrinting().create();
+                AppData data = new AppData(subjects, studySessions, importantDates);
+                gson.toJson(data, writer);
+            }
+            Files.move(tmp, dataFile, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
     public void loadData() {
-        File file = new File(FILE_PATH);
-        if (!file.exists()) {
+        if (!Files.exists(dataFile)) {
             loadInitialDemoData();
             saveData();
             return;
         }
 
-        try (Reader reader = new FileReader(FILE_PATH)) {
+        try (Reader reader = Files.newBufferedReader(dataFile, StandardCharsets.UTF_8)) {
             Gson gson = new Gson();
             AppData data = gson.fromJson(reader, AppData.class);
             if (data != null) {
@@ -101,7 +166,20 @@ public class DataManager {
             }
         } catch (Exception e) {
             e.printStackTrace();
+            backupDamagedFile();
             loadInitialDemoData();
+        }
+    }
+
+    /** Guarda una copia del archivo ilegible antes de que el próximo guardado lo pise. */
+    private void backupDamagedFile() {
+        String stamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss"));
+        Path backup = dataFile.resolveSibling(FILE_NAME + ".danado-" + stamp);
+        try {
+            Files.copy(dataFile, backup, StandardCopyOption.REPLACE_EXISTING);
+            System.err.println("El archivo de datos no se pudo leer; copia guardada en " + backup);
+        } catch (IOException e) {
+            e.printStackTrace();
         }
     }
 
