@@ -1,0 +1,20 @@
+# Compilación de Maven (se regenera con mvn package)
+target/
+
+# Datos del usuario generados al usar la app (no son código)
+planificador_datos.json
+*.db
+*.sqlite
+
+# IDEs y editores
+.idea/
+*.iml
+.vscode/
+.classpath
+.project
+.settings/
+
+# Sistema
+.DS_Store
+*~
+*.swp
