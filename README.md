@@ -19,6 +19,22 @@ mvn clean package
 java -jar target/planificador-estudio-desktop-1.0.0-jar-with-dependencies.jar
 ```
 
+## 💾 Dónde se guardan los datos
+Los datos viven siempre en el mismo archivo, sin importar desde qué carpeta se abra la app:
+
+```
+~/.local/share/planificador-estudio/planificador_datos.json
+```
+
+(o `$XDG_DATA_HOME/planificador-estudio/` si esa variable está definida). Se guarda primero en un temporal y después se reemplaza, así un corte a mitad de escritura no deja el archivo roto. Si el archivo no se puede leer, se guarda una copia `planificador_datos.json.danado-<fecha>` antes de cargar los datos de ejemplo.
+
+Las versiones anteriores guardaban `planificador_datos.json` en la carpeta desde donde se abría la app. Al primer inicio, si la ubicación nueva no existe, se **copia** el más reciente de esos archivos viejos (carpeta actual o carpeta personal); el original no se borra.
+
+## 🧪 Tests
+```bash
+mvn test
+```
+
 ## 📂 Estructura del Proyecto
 - `com.planificador.Main`: Punto de entrada de la aplicación.
 - `com.planificador.model`: Modelos de datos (Subject, Unit, Topic, StudySession, ImportantDate).
