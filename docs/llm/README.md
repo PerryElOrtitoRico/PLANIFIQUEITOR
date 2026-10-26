@@ -41,3 +41,4 @@ Verificado al armar el paquete: los ocultos de T01–T04d compilan contra el esq
 | T04b | esqueleto | qwen | sí | 2/2 | 3/3 | 0 | 2,2 min | qwen | perfecto al primer intento |
 | T01 | esqueleto | Gemma | sí | 3/3 | 4/4 | 0 | 1,8 min | Gemma | perfecto al primer intento |
 | T02a | esqueleto | Gemma | sí | 3/3 | 3/3 | 0 | 2,1 min | Gemma | perfecto al primer intento |
+| T02b | esqueleto | Gemma (+ qwen para corregir) | código sí; test no | 5/6 → 6/6 | 3/3 | 3 | 26 min (Gemma 5,5) | Gemma (código) + test de Claude | cambió una aserción de la tarea ("2026-10-12 is a Sunday"); qwen devolvió el archivo igual dos veces |

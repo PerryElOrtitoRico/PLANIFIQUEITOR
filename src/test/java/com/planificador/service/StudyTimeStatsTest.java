@@ -31,7 +31,7 @@ class StudyTimeStatsTest {
 
     @Test
     void minutosPorMateriaSoloDeEsaSemana() {
-        // Week starts on 2026-10-19 (Monday). Ends before 2026-10-26 (Sunday).
+        // La semana va del lunes 2026-10-19 al domingo 2026-10-25.
         // Logs:
         // 1. log("s1", "2026-10-18", 100) -> Outside the week [10-19, 10-26)
         // 2. log("s1", "2026-10-19", 25) -> Inside
@@ -82,7 +82,7 @@ class StudyTimeStatsTest {
     @Test
     void minutosPorSemana() {
         // Logs:
-        // 1. log("s1", "2026-10-12", 25) -> Week starts 2026-10-12 (Sun) -> WeekStart 2026-10-11 (Mon)
+        // 1. log("s1", "2026-10-12", 25) -> 2026-10-12 es lunes: semana del 2026-10-12
         // 2. log("s1", "2026-10-20", 25) -> Week starts 2026-10-19 (Mon)
         // 3. log("s2", "2026-10-20", 50) -> Week starts 2026-10-19 (Mon)
         List<StudyLog> logs = List.of(
@@ -93,15 +93,15 @@ class StudyTimeStatsTest {
 
         // Test for "s1"
         SortedMap<LocalDate, Integer> s1Stats = StudyTimeStats.minutesByWeek(logs, "s1");
-        // 2026-10-12 is a Sunday, weekStart is 2026-10-11 (Monday)
-        assertEquals(25, s1Stats.get(LocalDate.of(2026, 10, 11)));
+        // 2026-10-12 es lunes: es el inicio de su semana
+        assertEquals(25, s1Stats.get(LocalDate.of(2026, 10, 12)));
         // 2026-10-20 is a Monday, weekStart is 2026-10-19 (Monday)
         assertEquals(25, s1Stats.get(LocalDate.of(2026, 10, 19)));
 
         // Test for all subjects (null)
         SortedMap<LocalDate, Integer> allStats = StudyTimeStats.minutesByWeek(logs, null);
-        // Week starting 2026-10-11: s1=25
-        assertEquals(25, allStats.get(LocalDate.of(2026, 10, 11)));
+        // Semana del 2026-10-12: s1=25
+        assertEquals(25, allStats.get(LocalDate.of(2026, 10, 12)));
         // Week starting 2026-10-19: s1=25, s2=50. Total = 75
         assertEquals(75, allStats.get(LocalDate.of(2026, 10, 19)));
     }
