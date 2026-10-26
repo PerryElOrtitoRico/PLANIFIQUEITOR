@@ -9,7 +9,7 @@ grep -E "Tests run:|COMPILATION ERROR|ERROR\] /|expected:|but was|Exception:|\.j
 echo "== firmas"
 for f in "$FIRMAS"/*.txt; do
   c=$(basename "$f" .txt)
-  javap -p -cp target/classes "$c" 2>/dev/null | grep -v "lambda\$" | diff - <(grep -v "lambda\$" "$f") > /dev/null || echo "CAMBIÓ: $c"
+  javap -p -cp target/classes "$c" 2>/dev/null | grep -vF 'lambda$' | diff - <(grep -vF 'lambda$' "$f") > /dev/null || echo "CAMBIÓ: $c"
 done
 echo "== ocultos $T"
 mkdir -p src/test/java/com/planificador/ui
