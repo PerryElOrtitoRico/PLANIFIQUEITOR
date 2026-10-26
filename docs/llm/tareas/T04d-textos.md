@@ -26,8 +26,18 @@ String nombre = switch (status.condition()) {
 out.add("Condición: " + nombre);
 ```
   3. `AttendanceSummary a = status.attendance();`
-  4. Si `a.remainingKnown()`: `> 1` → `"Podés faltar " + a.remainingAbsences() + " clases más"`; `== 1` → `"Podés faltar 1 clase más"`; `== 0` → `"No podés faltar más"`; negativo → `"Superaste el límite de faltas por " + (-a.remainingAbsences())`.
-     Si no: `out.add("Asistencia: " + String.format(AR, "%.1f", a.percent()) + " % (mínimo " + formatGrade(rules.getMinAttendancePercent()) + " %)");`
+  4. Exactamente así (`remainingKnown()` es boolean; el número es `remainingAbsences()`):
+```java
+if (a.remainingKnown()) {
+    int quedan = a.remainingAbsences();
+    if (quedan > 1) out.add("Podés faltar " + quedan + " clases más");
+    else if (quedan == 1) out.add("Podés faltar 1 clase más");
+    else if (quedan == 0) out.add("No podés faltar más");
+    else out.add("Superaste el límite de faltas por " + (-quedan));
+} else {
+    out.add("Asistencia: " + String.format(AR, "%.1f", a.percent()) + " % (mínimo " + formatGrade(rules.getMinAttendancePercent()) + " %)");
+}
+```
   5. `String pass = formatGrade(rules.getPassGrade()); String promo = formatGrade(rules.getPromotionGrade());`
   6. Por cada `ExamResult e : status.exams()`, con `String p = "Parcial " + e.number() + ": ";`
      - `PENDIENTE` → `p + "falta rendir (necesitás " + pass + " para regularizar" + (rules.getPromotionGrade() > 0 ? " y " + promo + " para promocionar" : "") + ")"`

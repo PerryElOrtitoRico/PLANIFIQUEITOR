@@ -101,6 +101,9 @@ class CourseStatusCalculatorTest {
 
     @Test
     void textos() {
-        // lo completa otra subtarea (T04d): no lo cambies
+        CourseStatus s = new CourseStatus(CourseCondition.EN_CURSO, new AttendanceSummary(10, 8, 2, 80.0, false, true, 2),
+                List.of(new ExamResult(1, 6.5, null, 6.5, ExamState.APROBADO)), false, true);
+        assertEquals(List.of("Condición: En curso", "Podés faltar 2 clases más", "Parcial 1: 6,5 (aprobado)", "Ya no podés promocionar; todavía podés regularizar"), CourseStatusCalculator.describe(s, reglas()));
+        assertEquals("7", CourseStatusCalculator.formatGrade(7));
     }
 }

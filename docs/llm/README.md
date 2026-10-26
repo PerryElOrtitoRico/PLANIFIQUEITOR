@@ -44,3 +44,4 @@ Verificado al armar el paquete: los ocultos de T01–T04d compilan contra el esq
 | T02b | esqueleto | Gemma (+ qwen para corregir) | código sí; test no | 5/6 → 6/6 | 3/3 | 3 | 26 min (Gemma 5,5) | Gemma (código) + test de Claude | cambió una aserción de la tarea ("2026-10-12 is a Sunday"); qwen devolvió el archivo igual dos veces |
 | T03b | esqueleto | Gemma | sí | 3/3 | 3/3 | 0 | 2 min | Gemma | perfecto al primer intento, tests sin comentarios |
 | T04a | esqueleto | Gemma | sí | 2/2 | 3/3 | 0 | 3,4 min | Gemma | bien al primer intento; comentarios con cuentas mal en el test |
+| T04d | esqueleto | Gemma (+ qwen para corregir) | sí, en la 3.ª vuelta | 1/1 | 4/4 | 2 (una cortada) | 15 min | Gemma + corrección de qwen | paso en prosa → `remainingKnown() > 1`; arreglado con el paso en Java |

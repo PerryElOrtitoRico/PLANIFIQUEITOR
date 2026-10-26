@@ -71,13 +71,53 @@ public final class CourseStatusCalculator {
 
     /** Líneas de texto para mostrar la condición y cuánto falta. */
     public static List<String> describe(CourseStatus status, CourseRules rules) {
-        // lo completa otra subtarea (T04d): no lo cambies
-        throw new UnsupportedOperationException();
+        List<String> out = new ArrayList<>();
+
+        String nombre = switch (status.condition()) {
+            case PROMOCION -> "Promoción";
+            case REGULAR -> "Regular";
+            case LIBRE -> "Libre";
+            case EN_CURSO -> "En curso";
+        };
+        out.add("Condición: " + nombre);
+
+        AttendanceSummary a = status.attendance();
+        if (a.remainingKnown()) {
+            int quedan = a.remainingAbsences();
+            if (quedan > 1) out.add("Podés faltar " + quedan + " clases más");
+            else if (quedan == 1) out.add("Podés faltar 1 clase más");
+            else if (quedan == 0) out.add("No podés faltar más");
+            else out.add("Superaste el límite de faltas por " + (-quedan));
+        } else {
+            out.add("Asistencia: " + String.format(AR, "%.1f", a.percent()) + " % (mínimo " + formatGrade(rules.getMinAttendancePercent()) + " %)");
+        }
+
+        String pass = formatGrade(rules.getPassGrade());
+        String promo = formatGrade(rules.getPromotionGrade());
+
+        for (ExamResult e : status.exams()) {
+            String p = "Parcial " + e.number() + ": ";
+            if (e.state() == ExamState.PENDIENTE) {
+                out.add(p + "falta rendir (necesitás " + pass + " para regularizar" + (rules.getPromotionGrade() > 0 ? " y " + promo + " para promocionar" : "") + ")");
+            } else if (e.state() == ExamState.A_RECUPERAR) {
+                out.add(p + formatGrade(e.effective()) + ", tenés que recuperarlo (necesitás " + pass + ")");
+            } else if (e.state() == ExamState.APROBADO) {
+                out.add(p + formatGrade(e.effective()) + " (aprobado)");
+            } else if (e.state() == ExamState.DESAPROBADO) {
+                out.add(p + formatGrade(e.effective()) + " (desaprobado)");
+            }
+        }
+
+        if (status.condition() == CourseCondition.EN_CURSO && rules.getPromotionGrade() > 0) {
+            out.add(status.canPromote() ? "Todavía podés promocionar" : "Ya no podés promocionar; todavía podés regularizar");
+        }
+
+        return out;
     }
 
     /** Nota sin decimales si es entera ("7"), si no con uno y coma ("6,5"). */
     public static String formatGrade(double grade) {
-        // lo completa otra subtarea (T04d): no lo cambies
-        throw new UnsupportedOperationException();
+        if (grade == Math.rint(grade)) return String.valueOf((long) grade);
+        return String.format(AR, "%.1f", grade);
     }
 }

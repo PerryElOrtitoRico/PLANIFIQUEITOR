@@ -107,12 +107,15 @@ def main():
     ap.add_argument("--razonar")
     ap.add_argument("--solo-ver", action="store_true")
     ap.add_argument("--max", type=int, default=0)
+    ap.add_argument("--solo", help="rutas separadas por coma: en una corrección, mandar y pedir solo estos archivos")
     ap.add_argument("--reextraer", action="store_true", help="no pide nada: vuelve a extraer la respuesta guardada")
     a = ap.parse_args()
 
     tarea_path = pathlib.Path(a.tarea)
     tarea_id = tarea_path.name.split("-")[0]
     secciones, archivos, tarea = leer_cabecera(tarea_path.read_text(encoding="utf-8"))
+    if a.solo:
+        archivos = [r.strip() for r in a.solo.split(",")]
 
     if a.reextraer:
         extraer_de_registro(f"{tarea_id}-{a.modelo}-intento-{a.intento}", archivos)
@@ -133,7 +136,7 @@ def main():
     user += (f"\n\nCompletá los `// TODO` que pide la tarea {tarea_id}. Devolvé estos archivos completos, "
              f"cada uno en su bloque: {', '.join(archivos)}.")
 
-    estimado = (len(SYSTEM) + len(user)) // 3
+    estimado = int((len(SYSTEM) + len(user)) / 3.4)
     max_tokens = a.max or max(1000, CONTEXTO - estimado - 64)
     etiqueta = f"{tarea_id}-{a.modelo}-intento-{a.intento}"
     cuerpo = {"model": MODELOS[a.modelo], "temperature": 0.2, "max_tokens": max_tokens,
