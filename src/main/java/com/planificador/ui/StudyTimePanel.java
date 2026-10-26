@@ -90,14 +90,43 @@ public class StudyTimePanel extends JPanel {
 
     /** Una fila por materia: Materia, Planeado, Estudiado, Avance. */
     DefaultTableModel buildWeekModel(LocalDate weekStart) {
-        // TODO T08
-        throw new UnsupportedOperationException();
+        DataManager dm = DataManager.getInstance();
+        DefaultTableModel m = readOnlyModel(new Object[]{"Materia", "Planeado", "Estudiado", "Avance"});
+        List<String> ids = new ArrayList<>();
+        for (Subject s : dm.getSubjects()) ids.add(s.getId());
+        List<SubjectWeekTime> times = StudyTimeStats.compareWeek(ids, dm.getStudyLogs(), dm.getStudySessions(), weekStart);
+        for (int i = 0; i < times.size(); i++) {
+            SubjectWeekTime t = times.get(i);
+            String avance = t.plannedMinutes() > 0 ? (t.actualMinutes() * 100 / t.plannedMinutes()) + " %" : "—";
+            m.addRow(new Object[]{dm.getSubjects().get(i).getName(), StudyTimeStats.formatMinutes(t.plannedMinutes()), StudyTimeStats.formatMinutes(t.actualMinutes()), avance});
+        }
+        return m;
     }
 
     /** Una fila por semana (de la más vieja a lastWeekStart): Semana, una columna por materia y Total. */
     DefaultTableModel buildHistoryModel(LocalDate lastWeekStart, int weeks) {
-        // TODO T08
-        throw new UnsupportedOperationException();
+        DataManager dm = DataManager.getInstance();
+        List<Subject> subjects = dm.getSubjects();
+        Object[] cols = new Object[subjects.size() + 2];
+        cols[0] = "Semana";
+        for (int i = 0; i < subjects.size(); i++) cols[i + 1] = subjects.get(i).getName();
+        cols[cols.length - 1] = "Total";
+        DefaultTableModel m = readOnlyModel(cols);
+        for (int w = weeks - 1; w >= 0; w--) {
+            LocalDate ws = lastWeekStart.minusWeeks(w);
+            Map<String, Integer> mins = StudyTimeStats.minutesBySubject(dm.getStudyLogs(), ws);
+            Object[] row = new Object[cols.length];
+            row[0] = ws.format(DIA);
+            int total = 0;
+            for (int i = 0; i < subjects.size(); i++) {
+                int x = mins.getOrDefault(subjects.get(i).getId(), 0);
+                total += x;
+                row[i + 1] = StudyTimeStats.formatMinutes(x);
+            }
+            row[cols.length - 1] = StudyTimeStats.formatMinutes(total);
+            m.addRow(row);
+        }
+        return m;
     }
 
     /** Modelo de tabla que no se puede editar a mano. */

@@ -48,3 +48,4 @@ Verificado al armar el paquete: los ocultos compilan contra el esqueleto y falla
 | T04c | esqueleto, solo métodos | qwen | sí | 2/2 | 4/4 | 1 (la primera cortada) | 10,4 min (el bueno 1,4) | qwen | primer pedido cortado por largo; con `--metodos` perfecto |
 | T05 | esqueleto, solo métodos | qwen | sí | 2/2 (+9 viejos) | 4/4 | 0 | 2,4 min | qwen | perfecto al primer intento; JSON viejo carga igual |
 | T07 | esqueleto, solo métodos | qwen | sí | 2/2 | 2/2 | 0 | 1 min | qwen | perfecto al primer intento |
+| T08 | esqueleto, solo métodos | qwen | sí | 2/2 | 2/2 | 0 | 1,3 min | qwen | bloque sin abrir y métodos hechos `public`: lo absorbe el extractor |

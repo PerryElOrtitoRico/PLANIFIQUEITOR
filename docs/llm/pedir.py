@@ -76,9 +76,13 @@ def extraer_bloques(respuesta):
     """Bloques de código con la ruta en la primera línea. Si un bloque trae varios archivos pegados
     (otra línea `// ruta.java` en el medio), se separan por esas líneas."""
     bloques = {}
-    for m in re.finditer(r"```[a-zA-Z]*\n(.*?)```", respuesta, re.S):
+    cuerpos = [m.group(1) for m in re.finditer(r"```[a-zA-Z]*\n(.*?)```", respuesta, re.S)]
+    if not cuerpos or not any(re.search(r"(?m)^\s*//\s*src/\S+\.java\s*$", c) for c in cuerpos):
+        # respuesta sin bloques bien abiertos: se toma todo el texto y se separa por las líneas de ruta
+        cuerpos = [re.sub(r"(?m)^```[a-zA-Z]*\s*$|^java\s*$", "", respuesta)]
+    for cuerpo in cuerpos:
         actual, lineas = None, []
-        for linea in m.group(1).split("\n"):
+        for linea in cuerpo.split("\n"):
             r = re.match(r"\s*//\s*(src/\S+\.java)\s*$", linea)
             if r:
                 if actual:
@@ -148,7 +152,11 @@ def injertar(ruta, fragmento):
         if nombre not in viejos or nombre == p.stem:
             continue
         vi, vf = viejos[nombre]
-        actual = actual[:vi] + fragmento[i:f] + actual[vf:]
+        llave_vieja = actual.index("{", DECL.match(actual, vi).end() - 1)
+        llave_nueva = fragmento.index("{", DECL.match(fragmento, i).end() - 1)
+        if DECL.match(actual, vi).group(0).split() != DECL.match(fragmento, i).group(0).split():
+            print(f"  aviso: cambió la declaración de {nombre}; se conserva la del esqueleto")
+        actual = actual[:llave_vieja] + fragmento[llave_nueva:f] + actual[vf:]
         cambiados.append(nombre)
     for imp in re.findall(r"(?m)^import [\w.*]+;$", fragmento):
         if imp not in actual:

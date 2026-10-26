@@ -20,11 +20,25 @@ class StudyTimePanelTest {
 
     @Test
     void tablaDeLaSemana() throws Exception {
-        // TODO T08
+        UiDatos.cargar(tmp);
+        StudyTimePanel p = new StudyTimePanel(null);
+        var m = p.buildWeekModel(LocalDate.of(2026, 10, 19));
+        assertEquals(2, m.getRowCount());
+        assertEquals("Mecánica de Fluidos", m.getValueAt(0, 0));
+        assertEquals("2 h", m.getValueAt(0, 1));
+        assertEquals("50 min", m.getValueAt(0, 2));
+        assertEquals("41 %", m.getValueAt(0, 3));
     }
 
     @Test
     void tablaDeLasUltimasSemanas() throws Exception {
-        // TODO T08
+        UiDatos.cargar(tmp);
+        StudyTimePanel p = new StudyTimePanel(null);
+        var m = p.buildHistoryModel(LocalDate.of(2026, 10, 19), 2);
+        assertEquals(4, m.getColumnCount());
+        assertEquals("Total", m.getColumnName(3));
+        assertEquals("12/10", m.getValueAt(0, 0));
+        assertEquals("50 min", m.getValueAt(0, 2));
+        assertEquals("50 min", m.getValueAt(1, 3));
     }
 }
