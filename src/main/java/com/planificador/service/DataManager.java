@@ -26,6 +26,8 @@ public class DataManager {
     private List<Subject> subjects = new ArrayList<>();
     private List<StudySession> studySessions = new ArrayList<>();
     private List<ImportantDate> importantDates = new ArrayList<>();
+    private List<StudyLog> studyLogs = new ArrayList<>();
+    private PomodoroSettings pomodoroSettings = new PomodoroSettings();
 
     /**
      * @param dataFile    archivo donde se guardan y leen los datos
@@ -47,6 +49,11 @@ public class DataManager {
             instance = new DataManager(resolveDataFile(System.getenv(), home), legacy);
         }
         return instance;
+    }
+
+    /** Solo para tests: el singleton pasa a usar este archivo (así ningún test toca los datos reales). */
+    public static synchronized void initForTests(Path dataFile) {
+        instance = new DataManager(dataFile, List.of());
     }
 
     /** Ubicación fija según el estándar XDG: $XDG_DATA_HOME o ~/.local/share. */
@@ -95,6 +102,26 @@ public class DataManager {
     public List<StudySession> getStudySessions() { return studySessions; }
     public List<ImportantDate> getImportantDates() { return importantDates; }
 
+    /** Sesiones de estudio hechas (Pomodoro). Nunca null. */
+    public List<StudyLog> getStudyLogs() {
+        return studyLogs;
+    }
+
+    public void addStudyLog(StudyLog log) {
+        studyLogs.add(log);
+        saveData();
+    }
+
+    /** Ajustes del Pomodoro. Nunca null. */
+    public PomodoroSettings getPomodoroSettings() {
+        return pomodoroSettings;
+    }
+
+    public void setPomodoroSettings(PomodoroSettings settings) {
+        this.pomodoroSettings = settings;
+        saveData();
+    }
+
     public Subject getSubjectById(String id) {
         return subjects.stream().filter(s -> s.getId().equals(id)).findFirst().orElse(null);
     }
@@ -108,6 +135,7 @@ public class DataManager {
         subjects.removeIf(s -> s.getId().equals(subjectId));
         studySessions.removeIf(sess -> sess.getSubjectId().equals(subjectId));
         importantDates.removeIf(d -> d.getSubjectId().equals(subjectId));
+        studyLogs.removeIf(l -> subjectId.equals(l.getSubjectId()));
         saveData();
     }
 
@@ -138,7 +166,7 @@ public class DataManager {
             Path tmp = dataFile.resolveSibling(FILE_NAME + ".tmp");
             try (Writer writer = Files.newBufferedWriter(tmp, StandardCharsets.UTF_8)) {
                 Gson gson = new GsonBuilder().setPrettyPrinting().create();
-                AppData data = new AppData(subjects, studySessions, importantDates);
+                AppData data = new AppData(subjects, studySessions, importantDates, studyLogs, pomodoroSettings);
                 gson.toJson(data, writer);
             }
             Files.move(tmp, dataFile, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
@@ -158,9 +186,7 @@ public class DataManager {
             Gson gson = new Gson();
             AppData data = gson.fromJson(reader, AppData.class);
             if (data != null) {
-                this.subjects = data.subjects != null ? data.subjects : new ArrayList<>();
-                this.studySessions = data.studySessions != null ? data.studySessions : new ArrayList<>();
-                this.importantDates = data.importantDates != null ? data.importantDates : new ArrayList<>();
+                applyLoaded(data);
             } else {
                 loadInitialDemoData();
             }
@@ -169,6 +195,15 @@ public class DataManager {
             backupDamagedFile();
             loadInitialDemoData();
         }
+    }
+
+    /** Copia a los campos lo leído del JSON. Un campo que falta (JSON viejo) queda vacío o con su valor por defecto. */
+    private void applyLoaded(AppData data) {
+        this.subjects = data.subjects != null ? data.subjects : new ArrayList<>();
+        this.studySessions = data.studySessions != null ? data.studySessions : new ArrayList<>();
+        this.importantDates = data.importantDates != null ? data.importantDates : new ArrayList<>();
+        this.studyLogs = data.studyLogs != null ? data.studyLogs : new ArrayList<>();
+        this.pomodoroSettings = data.pomodoroSettings != null ? data.pomodoroSettings : new PomodoroSettings();
     }
 
     /** Guarda una copia del archivo ilegible antes de que el próximo guardado lo pise. */
@@ -187,6 +222,8 @@ public class DataManager {
         subjects.clear();
         studySessions.clear();
         importantDates.clear();
+        studyLogs.clear();
+        pomodoroSettings = new PomodoroSettings();
 
         Subject math = new Subject("s1", "Análisis Matemático II", "#4f46e5", "Ing. Pérez", "Lun y Mié 18:00 hs");
         Unit u1 = new Unit("u1", 1, "Derivadas Parciales y Integrales Múltiples");
@@ -217,11 +254,16 @@ public class DataManager {
         List<Subject> subjects;
         List<StudySession> studySessions;
         List<ImportantDate> importantDates;
+        List<StudyLog> studyLogs;               // nuevo: puede faltar en un JSON viejo
+        PomodoroSettings pomodoroSettings;      // nuevo: puede faltar en un JSON viejo
 
-        AppData(List<Subject> subjects, List<StudySession> studySessions, List<ImportantDate> importantDates) {
+        AppData(List<Subject> subjects, List<StudySession> studySessions, List<ImportantDate> importantDates,
+                List<StudyLog> studyLogs, PomodoroSettings pomodoroSettings) {
             this.subjects = subjects;
             this.studySessions = studySessions;
             this.importantDates = importantDates;
+            this.studyLogs = studyLogs;
+            this.pomodoroSettings = pomodoroSettings;
         }
     }
 }

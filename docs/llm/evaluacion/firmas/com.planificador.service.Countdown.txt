@@ -1,0 +1,7 @@
+Compiled from "Countdown.java"
+public final class com.planificador.service.Countdown {
+  private com.planificador.service.Countdown();
+  public static java.lang.Long daysUntil(java.lang.String, java.time.LocalDate);
+  public static java.util.List<com.planificador.model.ImportantDate> upcoming(java.util.List<com.planificador.model.ImportantDate>, java.time.LocalDate, int);
+  public static java.lang.String text(com.planificador.model.ImportantDate, java.lang.String, java.time.LocalDate);
+}

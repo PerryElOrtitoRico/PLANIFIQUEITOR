@@ -1,0 +1,11 @@
+Compiled from "EvaluationForm.java"
+public class com.planificador.ui.EvaluationForm extends javax.swing.JPanel {
+  final javax.swing.JComboBox<java.lang.String> kindCombo;
+  final javax.swing.JSpinner numberSpinner;
+  final javax.swing.JCheckBox retakeCheck;
+  final javax.swing.JSpinner gradeSpinner;
+  final javax.swing.JTextField dateField;
+  public com.planificador.ui.EvaluationForm();
+  public com.planificador.model.Evaluation toEvaluation(java.lang.String);
+  private void lambda$new$0(java.awt.event.ActionEvent);
+}

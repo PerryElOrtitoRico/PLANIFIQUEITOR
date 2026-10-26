@@ -1,0 +1,15 @@
+Compiled from "CourseRulesForm.java"
+public class com.planificador.ui.CourseRulesForm extends javax.swing.JPanel {
+  final javax.swing.JSpinner minAttendance;
+  final javax.swing.JSpinner passGrade;
+  final javax.swing.JSpinner promotionGrade;
+  final javax.swing.JSpinner examCount;
+  final javax.swing.JSpinner plannedClasses;
+  final java.util.List<javax.swing.JCheckBox> retakeBoxes;
+  private final javax.swing.JPanel retakesPanel;
+  public com.planificador.ui.CourseRulesForm(com.planificador.model.CourseRules);
+  private void buildRetakeBoxes(int, java.util.List<java.lang.Boolean>);
+  private java.util.List<java.lang.Boolean> currentRetakes();
+  public com.planificador.model.CourseRules toRules();
+  private void lambda$new$0(javax.swing.event.ChangeEvent);
+}
