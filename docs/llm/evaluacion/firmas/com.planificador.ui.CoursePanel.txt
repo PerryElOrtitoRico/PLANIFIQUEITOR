@@ -1,0 +1,34 @@
+Compiled from "CoursePanel.java"
+public class com.planificador.ui.CoursePanel extends javax.swing.JPanel {
+  private final com.planificador.ui.MainWindow mainFrame;
+  private java.util.List<com.planificador.model.Subject> subjects;
+  final javax.swing.DefaultListModel<java.lang.String> subjectNames;
+  final javax.swing.JList<java.lang.String> subjectList;
+  final javax.swing.JLabel conditionLabel;
+  final javax.swing.JPanel statusPanel;
+  final javax.swing.JTable evaluationsTable;
+  final javax.swing.JTable attendanceTable;
+  final javax.swing.JTextField attendanceDate;
+  public com.planificador.ui.CoursePanel(com.planificador.ui.MainWindow);
+  public void refresh();
+  com.planificador.model.Subject selectedSubject();
+  void showSubject();
+  static java.util.List<java.lang.String> statusLines(com.planificador.model.Subject);
+  static javax.swing.table.DefaultTableModel evaluationsModel(com.planificador.model.CourseTracking);
+  static javax.swing.table.DefaultTableModel attendanceModel(com.planificador.model.CourseTracking);
+  static com.planificador.model.AttendanceRecord attendanceFrom(java.lang.String, boolean);
+  static java.awt.Color conditionColor(com.planificador.service.CourseCondition);
+  private void saveAndRefresh();
+  private void editRules();
+  private void addEvaluation();
+  private void deleteEvaluation();
+  private void addAttendance(boolean);
+  private void deleteAttendance();
+  private void lambda$new$6(java.awt.event.ActionEvent);
+  private void lambda$new$5(java.awt.event.ActionEvent);
+  private void lambda$new$4(java.awt.event.ActionEvent);
+  private void lambda$new$3(java.awt.event.ActionEvent);
+  private void lambda$new$2(java.awt.event.ActionEvent);
+  private void lambda$new$1(java.awt.event.ActionEvent);
+  private void lambda$new$0(javax.swing.event.ListSelectionEvent);
+}

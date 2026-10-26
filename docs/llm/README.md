@@ -31,7 +31,7 @@ mvn -o test -Dtest='T0*OcultoTest' -Dsurefire.failIfNoSpecifiedTests=false
 git clean -fq src/test/java/com/planificador/service/T0* src/test/java/com/planificador/service/CursadaDatos.java src/test/java/com/planificador/ui/T0*
 ```
 
-Verificado al armar el paquete: los ocultos de T01–T04d compilan contra el esqueleto y fallan todos con él (30 de 30).
+Verificado al armar el paquete: los ocultos compilan contra el esqueleto y fallan todos con él (T01–T04d: 30 de 30; T05: 4 de 4; T06–T09b: 12 de 12).
 
 ## Planilla de resultados
 

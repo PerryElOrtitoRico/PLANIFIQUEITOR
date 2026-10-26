@@ -1,0 +1,11 @@
+Compiled from "CountdownPanel.java"
+public class com.planificador.ui.CountdownPanel extends javax.swing.JPanel {
+  static final int DIAS;
+  static final java.awt.Color URGENTE;
+  static final java.awt.Color NORMAL;
+  public com.planificador.ui.CountdownPanel();
+  public void refresh();
+  void refresh(java.time.LocalDate);
+  java.util.List<javax.swing.JLabel> labels();
+  static {};
+}

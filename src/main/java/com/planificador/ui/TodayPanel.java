@@ -15,6 +15,7 @@ public class TodayPanel extends JPanel {
     private MainWindow mainFrame;
     private JPanel sessionsListPanel;
     private JLabel headerLabel;
+    private CountdownPanel countdownPanel;
 
     public TodayPanel() {
         this(null);
@@ -51,12 +52,26 @@ public class TodayPanel extends JPanel {
             dialog.setVisible(true);
         });
 
+        JButton pomodoroBtn = new JButton("🍅 Pomodoro");
+        pomodoroBtn.setFont(new Font("SansSerif", Font.BOLD, 13));
+        pomodoroBtn.setBackground(new Color(225, 29, 72));
+        pomodoroBtn.setForeground(Color.WHITE);
+        pomodoroBtn.setFocusPainted(false);
+        pomodoroBtn.addActionListener(e -> new PomodoroDialog(mainFrame).setVisible(true));
+
         rightBtns.add(addTodayBtn);
+        rightBtns.add(pomodoroBtn);
         rightBtns.add(timerBtn);
 
         topHeader.add(headerLabel, BorderLayout.WEST);
         topHeader.add(rightBtns, BorderLayout.EAST);
-        add(topHeader, BorderLayout.NORTH);
+
+        // Cuenta regresiva de las fechas importantes, debajo del título
+        countdownPanel = new CountdownPanel();
+        JPanel north = new JPanel(new BorderLayout(0, 6));
+        north.add(topHeader, BorderLayout.NORTH);
+        north.add(countdownPanel, BorderLayout.CENTER);
+        add(north, BorderLayout.NORTH);
 
         sessionsListPanel = new JPanel();
         sessionsListPanel.setLayout(new BoxLayout(sessionsListPanel, BoxLayout.Y_AXIS));
@@ -82,6 +97,7 @@ public class TodayPanel extends JPanel {
     }
 
     public void refresh() {
+        if (countdownPanel != null) countdownPanel.refresh();
         sessionsListPanel.removeAll();
 
         String todayName = getTodayDayKey();

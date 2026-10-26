@@ -52,12 +52,16 @@ public class MainWindow extends JFrame {
         SubjectsPanel subjectsPanel = new SubjectsPanel(this);
         DatesPanel datesPanel = new DatesPanel(this);
         StatsPanel statsPanel = new StatsPanel(this);
+        StudyTimePanel timePanel = new StudyTimePanel(this);
+        CoursePanel coursePanel = new CoursePanel(this);
 
         mainContentPanel.add(todayPanel, "HOY");
         mainContentPanel.add(weeklyPanel, "SEMANAL");
         mainContentPanel.add(subjectsPanel, "MATERIAS");
         mainContentPanel.add(datesPanel, "FECHAS");
         mainContentPanel.add(statsPanel, "STATS");
+        mainContentPanel.add(timePanel, "TIEMPO");
+        mainContentPanel.add(coursePanel, "CURSADA");
 
         // Add Nav Buttons
         sidebar.add(createNavButton("🎯 Hoy", "HOY"));
@@ -69,6 +73,10 @@ public class MainWindow extends JFrame {
         sidebar.add(createNavButton("⏰ Fechas Clave", "FECHAS"));
         sidebar.add(Box.createRigidArea(new Dimension(0, 8)));
         sidebar.add(createNavButton("📊 Progreso", "STATS"));
+        sidebar.add(Box.createRigidArea(new Dimension(0, 8)));
+        sidebar.add(createNavButton("⏳ Tiempo", "TIEMPO"));
+        sidebar.add(Box.createRigidArea(new Dimension(0, 8)));
+        sidebar.add(createNavButton("🎓 Cursada", "CURSADA"));
 
         sidebar.add(Box.createVerticalGlue());
 
@@ -108,6 +116,8 @@ public class MainWindow extends JFrame {
             if (comp instanceof SubjectsPanel) ((SubjectsPanel) comp).refresh();
             if (comp instanceof DatesPanel) ((DatesPanel) comp).refresh();
             if (comp instanceof StatsPanel) ((StatsPanel) comp).refresh();
+            if (comp instanceof StudyTimePanel) ((StudyTimePanel) comp).refresh();
+            if (comp instanceof CoursePanel) ((CoursePanel) comp).refresh();
         }
     }
 

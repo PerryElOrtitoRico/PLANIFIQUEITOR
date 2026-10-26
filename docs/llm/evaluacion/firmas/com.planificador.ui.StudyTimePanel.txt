@@ -1,0 +1,21 @@
+Compiled from "StudyTimePanel.java"
+public class com.planificador.ui.StudyTimePanel extends javax.swing.JPanel {
+  static final java.time.format.DateTimeFormatter DIA;
+  static final int SEMANAS;
+  private final com.planificador.ui.MainWindow mainFrame;
+  java.time.LocalDate weekStart;
+  final javax.swing.JLabel weekLabel;
+  final javax.swing.JTable weekTable;
+  final javax.swing.JTable historyTable;
+  public com.planificador.ui.StudyTimePanel(com.planificador.ui.MainWindow);
+  private static javax.swing.JComponent titled(java.lang.String, javax.swing.JTable);
+  public void refresh();
+  javax.swing.table.DefaultTableModel buildWeekModel(java.time.LocalDate);
+  javax.swing.table.DefaultTableModel buildHistoryModel(java.time.LocalDate, int);
+  static javax.swing.table.DefaultTableModel readOnlyModel(java.lang.Object[]);
+  private void lambda$new$3(java.awt.event.ActionEvent);
+  private void lambda$new$2(java.awt.event.ActionEvent);
+  private void lambda$new$1(java.awt.event.ActionEvent);
+  private static void lambda$new$0(com.planificador.ui.MainWindow, java.awt.event.ActionEvent);
+  static {};
+}
