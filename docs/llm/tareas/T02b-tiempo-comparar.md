@@ -28,5 +28,5 @@ Completar **solo** `compareWeek`, `minutesByWeek` y `formatMinutes` de `StudyTim
 
 ## Tests (usan `log(materia, fecha, minutos)` y `plan(materia, minutos)` que ya están en el test)
 - `comparaPlaneadoYEstudiado`: `assertEquals(List.of(new SubjectWeekTime("s1", 60, 25), new SubjectWeekTime("s2", 0, 0)), StudyTimeStats.compareWeek(List.of("s1", "s2"), List.of(log("s1", "2026-10-20", 25)), List.of(plan("s1", 60)), LocalDate.of(2026, 10, 19)));`
-- `minutosPorSemana`: con `List.of(log("s1", "2026-10-12", 25), log("s1", "2026-10-20", 25), log("s2", "2026-10-20", 50))` → `StudyTimeStats.minutesByWeek(logs, "s1")` tiene `get(LocalDate.of(2026, 10, 12))` = 25 y `get(LocalDate.of(2026, 10, 19))` = 25; y `StudyTimeStats.minutesByWeek(logs, null).get(LocalDate.of(2026, 10, 19))` = 75.
+- `minutosPorSemana` (el test necesita agregar `import java.util.SortedMap;` debajo de `import java.util.Map;`; 2026-10-12 y 2026-10-19 son **lunes**): con `List.of(log("s1", "2026-10-12", 25), log("s1", "2026-10-20", 25), log("s2", "2026-10-20", 50))` → `StudyTimeStats.minutesByWeek(logs, "s1")` tiene `get(LocalDate.of(2026, 10, 12))` = 25 y `get(LocalDate.of(2026, 10, 19))` = 25; y `StudyTimeStats.minutesByWeek(logs, null).get(LocalDate.of(2026, 10, 19))` = 75.
 - `formatoDeMinutos`: `"45 min"` para 45, `"2 h"` para 120, `"1 h 30 min"` para 90.

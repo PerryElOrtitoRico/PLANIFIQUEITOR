@@ -57,19 +57,38 @@ public final class StudyTimeStats {
     /** Planeado contra estudiado de cada materia de subjectIds, en ese orden, para la semana que empieza en weekStart. */
     public static List<SubjectWeekTime> compareWeek(List<String> subjectIds, List<StudyLog> logs,
                                                     List<StudySession> guide, LocalDate weekStart) {
-        // lo completa otra subtarea (T02b): no lo cambies
-        throw new UnsupportedOperationException();
+        Map<String, Integer> planned = plannedMinutesBySubject(guide);
+        Map<String, Integer> actual = minutesBySubject(logs, weekStart);
+        List<SubjectWeekTime> out = new ArrayList<>();
+        for (String id : subjectIds) {
+            out.add(new SubjectWeekTime(id, planned.getOrDefault(id, 0), actual.getOrDefault(id, 0)));
+        }
+        return out;
     }
 
     /** Minutos por semana (clave: lunes de la semana) de una materia; subjectId null = todas las materias. */
     public static SortedMap<LocalDate, Integer> minutesByWeek(List<StudyLog> logs, String subjectId) {
-        // lo completa otra subtarea (T02b): no lo cambies
-        throw new UnsupportedOperationException();
+        SortedMap<LocalDate, Integer> out = new TreeMap<>();
+        for (StudyLog log : logs) {
+            if (subjectId != null && !subjectId.equals(log.getSubjectId())) continue;
+            if (log.getDate() == null) continue;
+            LocalDate f;
+            try {
+                f = LocalDate.parse(log.getDate());
+            } catch (DateTimeParseException e) {
+                continue;
+            }
+            out.merge(weekStart(f), log.getMinutes(), Integer::sum);
+        }
+        return out;
     }
 
     /** "45 min", "2 h", "1 h 30 min". */
     public static String formatMinutes(int minutes) {
-        // lo completa otra subtarea (T02b): no lo cambies
-        throw new UnsupportedOperationException();
+        int h = minutes / 60;
+        int m = minutes % 60;
+        if (h == 0) return m + " min";
+        if (m == 0) return h + " h";
+        return h + " h " + m + " min";
     }
 }

@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Test;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
+import java.util.SortedMap;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -60,16 +61,62 @@ class StudyTimeStatsTest {
 
     @Test
     void comparaPlaneadoYEstudiado() {
-        // lo completa otra subtarea (T02b): no lo cambies
+        // Test case from specification:
+        // subjectIds: ["s1", "s2"]
+        // logs: [log("s1", "2026-10-20", 25)]
+        // guide: [plan("s1", 60)]
+        // weekStart: LocalDate.of(2026, 10, 19) (Monday)
+        // Expected: List.of(new SubjectWeekTime("s1", 60, 25), new SubjectWeekTime("s2", 0, 0))
+        List<String> subjectIds = List.of("s1", "s2");
+        List<StudyLog> logs = List.of(log("s1", "2026-10-20", 25));
+        List<StudySession> guide = List.of(plan("s1", 60));
+        LocalDate weekStart = LocalDate.of(2026, 10, 19);
+
+        List<SubjectWeekTime> result = StudyTimeStats.compareWeek(subjectIds, logs, guide, weekStart);
+
+        assertEquals(2, result.size());
+        assertEquals(new SubjectWeekTime("s1", 60, 25), result.get(0));
+        assertEquals(new SubjectWeekTime("s2", 0, 0), result.get(1));
     }
 
     @Test
     void minutosPorSemana() {
-        // lo completa otra subtarea (T02b): no lo cambies
+        // Logs:
+        // 1. log("s1", "2026-10-12", 25) -> Week starts 2026-10-12 (Sun) -> WeekStart 2026-10-11 (Mon)
+        // 2. log("s1", "2026-10-20", 25) -> Week starts 2026-10-19 (Mon)
+        // 3. log("s2", "2026-10-20", 50) -> Week starts 2026-10-19 (Mon)
+        List<StudyLog> logs = List.of(
+                log("s1", "2026-10-12", 25),
+                log("s1", "2026-10-20", 25),
+                log("s2", "2026-10-20", 50)
+        );
+
+        // Test for "s1"
+        SortedMap<LocalDate, Integer> s1Stats = StudyTimeStats.minutesByWeek(logs, "s1");
+        // 2026-10-12 is a Sunday, weekStart is 2026-10-11 (Monday)
+        assertEquals(25, s1Stats.get(LocalDate.of(2026, 10, 11)));
+        // 2026-10-20 is a Monday, weekStart is 2026-10-19 (Monday)
+        assertEquals(25, s1Stats.get(LocalDate.of(2026, 10, 19)));
+
+        // Test for all subjects (null)
+        SortedMap<LocalDate, Integer> allStats = StudyTimeStats.minutesByWeek(logs, null);
+        // Week starting 2026-10-11: s1=25
+        assertEquals(25, allStats.get(LocalDate.of(2026, 10, 11)));
+        // Week starting 2026-10-19: s1=25, s2=50. Total = 75
+        assertEquals(75, allStats.get(LocalDate.of(2026, 10, 19)));
     }
 
     @Test
     void formatoDeMinutos() {
-        // lo completa otra subtarea (T02b): no lo cambies
+        // 45 minutes
+        assertEquals("45 min", StudyTimeStats.formatMinutes(45));
+        // 120 minutes (2 hours)
+        assertEquals("2 h", StudyTimeStats.formatMinutes(120));
+        // 90 minutes (1 hour 30 minutes)
+        assertEquals("1 h 30 min", StudyTimeStats.formatMinutes(90));
+        // 0 minutes
+        assertEquals("0 min", StudyTimeStats.formatMinutes(0));
+        // 60 minutes (1 hour)
+        assertEquals("1 h", StudyTimeStats.formatMinutes(60));
     }
 }
