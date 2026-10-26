@@ -111,20 +111,33 @@ public class PomodoroPanel extends JPanel {
 
     /** Un segundo del reloj (lo llama el Timer). */
     void onTick() {
-        // TODO T07
-        throw new UnsupportedOperationException();
+        PomodoroPhase finished = engine.tick();
+        if (finished == PomodoroPhase.WORK) saveCycle();
+        updateLabels();
+        if (finished != null) {
+            timer.stop();
+            running = false;
+            startButton.setText("▶ Seguir");
+            Toolkit.getDefaultToolkit().beep();
+        }
     }
 
     /** Guarda el ciclo de estudio que acaba de terminar como StudyLog. */
     void saveCycle() {
-        // TODO T07
-        throw new UnsupportedOperationException();
+        Subject s = selectedSubject();
+        if (s == null) return;
+        Topic t = selectedTopic();
+        int minutes = engine.minutesFor(PomodoroPhase.WORK);
+        StudyLog log = StudyLogFactory.fromWorkCycle("pl_" + System.currentTimeMillis(), s.getId(), t != null ? t.getId() : null, t != null ? t.getTitle() : null, java.time.LocalDateTime.now(), minutes);
+        DataManager.getInstance().addStudyLog(log);
+        if (onSaved != null) onSaved.run();
     }
 
     /** Pone en las etiquetas el tiempo, la fase y los ciclos del engine. */
     void updateLabels() {
-        // TODO T07
-        throw new UnsupportedOperationException();
+        timeLabel.setText(PomodoroEngine.format(engine.secondsLeft()));
+        phaseLabel.setText(phaseName(engine.phase()));
+        cyclesLabel.setText("Ciclos completos: " + engine.completedWorkCycles());
     }
 
     /** Iniciar / pausar. */

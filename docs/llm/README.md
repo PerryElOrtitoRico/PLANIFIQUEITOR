@@ -47,3 +47,4 @@ Verificado al armar el paquete: los ocultos compilan contra el esqueleto y falla
 | T04d | esqueleto | Gemma (+ qwen para corregir) | sí, en la 3.ª vuelta | 1/1 | 4/4 | 2 (una cortada) | 15 min | Gemma + corrección de qwen | paso en prosa → `remainingKnown() > 1`; arreglado con el paso en Java |
 | T04c | esqueleto, solo métodos | qwen | sí | 2/2 | 4/4 | 1 (la primera cortada) | 10,4 min (el bueno 1,4) | qwen | primer pedido cortado por largo; con `--metodos` perfecto |
 | T05 | esqueleto, solo métodos | qwen | sí | 2/2 (+9 viejos) | 4/4 | 0 | 2,4 min | qwen | perfecto al primer intento; JSON viejo carga igual |
+| T07 | esqueleto, solo métodos | qwen | sí | 2/2 | 2/2 | 0 | 1 min | qwen | perfecto al primer intento |
