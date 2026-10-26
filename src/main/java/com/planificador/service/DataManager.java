@@ -104,24 +104,22 @@ public class DataManager {
 
     /** Sesiones de estudio hechas (Pomodoro). Nunca null. */
     public List<StudyLog> getStudyLogs() {
-        // TODO T05
-        throw new UnsupportedOperationException();
+        return studyLogs;
     }
 
     public void addStudyLog(StudyLog log) {
-        // TODO T05
-        throw new UnsupportedOperationException();
+        studyLogs.add(log);
+        saveData();
     }
 
     /** Ajustes del Pomodoro. Nunca null. */
     public PomodoroSettings getPomodoroSettings() {
-        // TODO T05
-        throw new UnsupportedOperationException();
+        return pomodoroSettings;
     }
 
     public void setPomodoroSettings(PomodoroSettings settings) {
-        // TODO T05
-        throw new UnsupportedOperationException();
+        this.pomodoroSettings = settings;
+        saveData();
     }
 
     public Subject getSubjectById(String id) {
@@ -137,7 +135,7 @@ public class DataManager {
         subjects.removeIf(s -> s.getId().equals(subjectId));
         studySessions.removeIf(sess -> sess.getSubjectId().equals(subjectId));
         importantDates.removeIf(d -> d.getSubjectId().equals(subjectId));
-        // TODO T05: borrar también los studyLogs de esa materia
+        studyLogs.removeIf(l -> subjectId.equals(l.getSubjectId()));
         saveData();
     }
 
@@ -201,8 +199,11 @@ public class DataManager {
 
     /** Copia a los campos lo leído del JSON. Un campo que falta (JSON viejo) queda vacío o con su valor por defecto. */
     private void applyLoaded(AppData data) {
-        // TODO T05
-        throw new UnsupportedOperationException();
+        this.subjects = data.subjects != null ? data.subjects : new ArrayList<>();
+        this.studySessions = data.studySessions != null ? data.studySessions : new ArrayList<>();
+        this.importantDates = data.importantDates != null ? data.importantDates : new ArrayList<>();
+        this.studyLogs = data.studyLogs != null ? data.studyLogs : new ArrayList<>();
+        this.pomodoroSettings = data.pomodoroSettings != null ? data.pomodoroSettings : new PomodoroSettings();
     }
 
     /** Guarda una copia del archivo ilegible antes de que el próximo guardado lo pise. */
@@ -221,7 +222,8 @@ public class DataManager {
         subjects.clear();
         studySessions.clear();
         importantDates.clear();
-        // TODO T05: vaciar también studyLogs y volver los ajustes del Pomodoro a los de por defecto
+        studyLogs.clear();
+        pomodoroSettings = new PomodoroSettings();
 
         Subject math = new Subject("s1", "Análisis Matemático II", "#4f46e5", "Ing. Pérez", "Lun y Mié 18:00 hs");
         Unit u1 = new Unit("u1", 1, "Derivadas Parciales y Integrales Múltiples");

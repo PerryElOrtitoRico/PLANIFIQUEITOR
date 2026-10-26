@@ -137,11 +137,22 @@ class DataManagerTest {
 
     @Test
     void cargaUnJsonViejoSinLosCamposNuevos() throws IOException {
-        // TODO T05
+        Path archivo = tmp.resolve("viejo/planificador_datos.json"); Files.createDirectories(archivo.getParent()); Files.writeString(archivo, DATOS_EJEMPLO, StandardCharsets.UTF_8);
+        DataManager dm = new DataManager(archivo, List.of());
+        assertTrue(dm.getStudyLogs().isEmpty());
+        assertEquals(25, dm.getPomodoroSettings().getWorkMinutes());
+        assertNull(dm.getSubjects().get(0).getCourse());
     }
 
     @Test
     void guardaYRecargaLoNuevo() {
-        // TODO T05
+        Path archivo = tmp.resolve("nuevo/planificador_datos.json"); DataManager dm = new DataManager(archivo, List.of());
+        dm.addStudyLog(new StudyLog("l1", "s1", null, null, "2026-10-25", "10:00", 25));
+        dm.setPomodoroSettings(new PomodoroSettings(50, 10, 20, 3));
+        Subject s = dm.getSubjects().get(0); s.getOrCreateCourse().getEvaluations().add(new Evaluation("e1", Evaluation.PARCIAL, 1, false, 7.5, null)); dm.saveData();
+        DataManager otra = new DataManager(archivo, List.of());
+        assertEquals(1, otra.getStudyLogs().size());
+        assertEquals(50, otra.getPomodoroSettings().getWorkMinutes());
+        assertEquals(7.5, otra.getSubjects().get(0).getCourse().getEvaluations().get(0).getGrade(), 1e-9);
     }
 }
