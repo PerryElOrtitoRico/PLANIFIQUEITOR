@@ -140,20 +140,26 @@ public class CoursePanel extends JPanel {
 
     /** Textos de la condición de la materia, o un aviso si todavía no tiene reglas cargadas. */
     static List<String> statusLines(Subject s) {
-        // TODO T09b
-        throw new UnsupportedOperationException();
+        if (s.getCourse() == null) return List.of("Todavía no cargaste las reglas de cursada: tocá «Reglas de cursada».");
+        CourseStatus st = CourseStatusCalculator.evaluate(s.getCourse());
+        return CourseStatusCalculator.describe(st, s.getCourse().getRules());
     }
 
     /** Columnas: Tipo, N.º, Recuperatorio, Nota, Fecha. Una fila por nota, en el orden de la lista. */
     static DefaultTableModel evaluationsModel(CourseTracking t) {
-        // TODO T09b
-        throw new UnsupportedOperationException();
+        DefaultTableModel m = StudyTimePanel.readOnlyModel(new Object[]{"Tipo", "N.º", "Recuperatorio", "Nota", "Fecha"});
+        for (Evaluation e : t.getEvaluations()) {
+            boolean parcial = Evaluation.PARCIAL.equals(e.getKind());
+            m.addRow(new Object[]{parcial ? "Parcial" : "TP", e.getNumber(), parcial ? (e.isRetake() ? "Sí" : "No") : "—", CourseStatusCalculator.formatGrade(e.getGrade()), e.getDate() == null ? "" : e.getDate()});
+        }
+        return m;
     }
 
     /** Columnas: Fecha, Asistencia ("Presente" o "Ausente"). Una fila por clase, en el orden de la lista. */
     static DefaultTableModel attendanceModel(CourseTracking t) {
-        // TODO T09b
-        throw new UnsupportedOperationException();
+        DefaultTableModel m = StudyTimePanel.readOnlyModel(new Object[]{"Fecha", "Asistencia"});
+        for (AttendanceRecord r : t.getAttendance()) m.addRow(new Object[]{r.getDate(), r.isPresent() ? "Presente" : "Ausente"});
+        return m;
     }
 
     /**
@@ -161,8 +167,7 @@ public class CoursePanel extends JPanel {
      * @throws IllegalArgumentException si dateText no es AAAA-MM-DD
      */
     static AttendanceRecord attendanceFrom(String dateText, boolean present) {
-        // TODO T09b
-        throw new UnsupportedOperationException();
+        try { return new AttendanceRecord(LocalDate.parse(dateText.trim()).toString(), present); } catch (DateTimeParseException e) { throw new IllegalArgumentException("Fecha inválida: usá AAAA-MM-DD"); }
     }
 
     static Color conditionColor(CourseCondition c) {

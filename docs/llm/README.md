@@ -51,3 +51,4 @@ Verificado al armar el paquete: los ocultos compilan contra el esqueleto y falla
 | T08 | esqueleto, solo métodos | qwen | sí | 2/2 | 2/2 | 0 | 1,3 min | qwen | bloque sin abrir y métodos hechos `public`: lo absorbe el extractor |
 | T06 | esqueleto, solo métodos | Gemma | sí | 2/2 | 2/2 | 0 | 0,6 min | Gemma | perfecto al primer intento |
 | T09a | esqueleto, solo métodos | Gemma | sí | 2/2 | 3/3 | 0 | 0,8 min | Gemma | perfecto al primer intento |
+| T09b | esqueleto, solo métodos | Gemma | sí | 1/2 → 2/2 | 3/3 | 0 | 1,1 min | Gemma (+ arreglo de Claude a su propia tarea) | la aserción mal era de la tarea, no del modelo |
