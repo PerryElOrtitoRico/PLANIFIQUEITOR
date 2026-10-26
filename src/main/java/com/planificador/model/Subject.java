@@ -10,6 +10,7 @@ public class Subject {
     private String professor;
     private String schedule;
     private List<Unit> units;
+    private CourseTracking course; // seguimiento de cursada; null si todavía no se configuró
 
     public Subject(String id, String name, String color, String professor, String schedule) {
         this.id = id;
@@ -31,6 +32,15 @@ public class Subject {
     public void setColor(String color) { this.color = color; }
     public void setProfessor(String professor) { this.professor = professor; }
     public void setSchedule(String schedule) { this.schedule = schedule; }
+
+    /** Seguimiento de cursada, o null si la materia todavía no lo tiene. */
+    public CourseTracking getCourse() { return course; }
+
+    /** Seguimiento de cursada; si no existía, lo crea con las reglas por defecto. */
+    public CourseTracking getOrCreateCourse() {
+        if (course == null) course = new CourseTracking();
+        return course;
+    }
 
     public double getProgressPercentage() {
         int totalTopics = 0;
