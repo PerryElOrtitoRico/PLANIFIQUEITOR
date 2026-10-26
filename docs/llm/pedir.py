@@ -35,6 +35,16 @@ public final class Ejemplo { }
 - Sin explicaciones fuera de los bloques."""
 
 
+SYSTEM_METODOS = SYSTEM.split("- Devolvé cada archivo completo")[0] + """- Devolvé solo los métodos que completaste, cada uno entero (firma y cuerpo), sin el resto de la clase: un bloque por archivo, con la ruta en la primera línea. Ejemplo:
+```java
+// src/main/java/com/planificador/service/Ejemplo.java
+    public static int doble(int x) {
+        return 2 * x;
+    }
+```
+- Sin explicaciones fuera de los bloques."""
+
+
 def leer_cabecera(texto):
     m = re.match(r"<!--\s*contrato:\s*([\d,\s]*)\|\s*archivos:\s*(.*?)\s*-->\s*\n", texto)
     if not m:
@@ -81,14 +91,84 @@ def extraer_bloques(respuesta):
     return bloques
 
 
-def extraer_de_registro(etiqueta, archivos):
+DECL = re.compile(r"(?m)^[ \t]*(?:(?:public|private|protected|static|final|synchronized)\s+)*"
+                  r"(?:<[^>]+>\s+)?[\w.<>\[\], ?]+?\s+(\w+)\s*\([^)]*\)\s*(?:throws\s+[\w., ]+)?\{")
+
+
+def fin_de_bloque(codigo, i):
+    """i apunta a una '{'; devuelve el índice siguiente a su '}' (saltea textos, caracteres y comentarios)."""
+    nivel, n = 0, len(codigo)
+    while i < n:
+        c = codigo[i]
+        if codigo.startswith("//", i):
+            i = codigo.find("\n", i)
+            i = n if i < 0 else i
+            continue
+        if codigo.startswith("/*", i):
+            i = codigo.find("*/", i) + 2
+            continue
+        if codigo.startswith('"""', i):
+            i = codigo.find('"""', i + 3) + 3
+            continue
+        if c in "\"'":
+            j = i + 1
+            while j < n and codigo[j] != c:
+                j += 2 if codigo[j] == "\\" else 1
+            i = j + 1
+            continue
+        if c == "{":
+            nivel += 1
+        elif c == "}":
+            nivel -= 1
+            if nivel == 0:
+                return i + 1
+        i += 1
+    return n
+
+
+def metodos(codigo):
+    """{nombre: (inicio, fin)} de cada método del código (sin la clase)."""
+    out = {}
+    for m in DECL.finditer(codigo):
+        nombre = m.group(1)
+        if nombre in ("if", "for", "while", "switch", "catch", "class", "new", "return"):
+            continue
+        out[nombre] = (m.start(), fin_de_bloque(codigo, m.end() - 1))
+    return out
+
+
+def injertar(ruta, fragmento):
+    """Reemplaza en el archivo los métodos que trae el fragmento (por nombre) y agrega sus imports nuevos."""
+    p = REPO / ruta
+    actual = p.read_text(encoding="utf-8")
+    nuevos = metodos(fragmento)
+    cambiados = []
+    for nombre, (i, f) in nuevos.items():
+        viejos = metodos(actual)
+        if nombre not in viejos or nombre == p.stem:
+            continue
+        vi, vf = viejos[nombre]
+        actual = actual[:vi] + fragmento[i:f] + actual[vf:]
+        cambiados.append(nombre)
+    for imp in re.findall(r"(?m)^import [\w.*]+;$", fragmento):
+        if imp not in actual:
+            ultimo = list(re.finditer(r"(?m)^import [\w.*]+;$", actual))[-1]
+            actual = actual[:ultimo.end()] + "\n" + imp + actual[ultimo.end():]
+            cambiados.append(imp)
+    p.write_text(actual, encoding="utf-8")
+    print("  injertado en", ruta, ":", ", ".join(cambiados) or "nada")
+
+
+def extraer_de_registro(etiqueta, archivos, solo_metodos=False):
     contenido = (LLM / "registros" / f"{etiqueta}.respuesta.md").read_text(encoding="utf-8")
-    escribir(extraer_bloques(contenido), archivos)
+    escribir(extraer_bloques(contenido), archivos, solo_metodos)
 
 
-def escribir(bloques, archivos):
+def escribir(bloques, archivos, solo_metodos=False):
     for ruta, codigo in bloques.items():
-        if ruta in archivos:
+        if ruta in archivos and solo_metodos:
+            injertar(ruta, codigo)
+        elif ruta in archivos:
             (REPO / ruta).write_text(codigo.strip("\n") + "\n", encoding="utf-8")
             print("  escrito", ruta)
         else:
@@ -108,6 +188,7 @@ def main():
     ap.add_argument("--solo-ver", action="store_true")
     ap.add_argument("--max", type=int, default=0)
     ap.add_argument("--solo", help="rutas separadas por coma: en una corrección, mandar y pedir solo estos archivos")
+    ap.add_argument("--metodos", action="store_true", help="pedir solo los métodos completados e injertarlos")
     ap.add_argument("--reextraer", action="store_true", help="no pide nada: vuelve a extraer la respuesta guardada")
     a = ap.parse_args()
 
@@ -118,7 +199,7 @@ def main():
         archivos = [r.strip() for r in a.solo.split(",")]
 
     if a.reextraer:
-        extraer_de_registro(f"{tarea_id}-{a.modelo}-intento-{a.intento}", archivos)
+        extraer_de_registro(f"{tarea_id}-{a.modelo}-intento-{a.intento}", archivos, a.metodos)
         return
 
     bloques_arch = []
@@ -133,21 +214,26 @@ def main():
     if a.error:
         user += ("\n\n---\n\n# Error al compilar o testear (corregilo)\n\n```\n"
                  + pathlib.Path(a.error).read_text(encoding="utf-8").strip() + "\n```")
-    user += (f"\n\nCompletá los `// TODO` que pide la tarea {tarea_id}. Devolvé estos archivos completos, "
-             f"cada uno en su bloque: {', '.join(archivos)}.")
+    if a.metodos:
+        user += (f"\n\nCompletá los `// TODO` que pide la tarea {tarea_id}. Devolvé **solo los métodos que completaste**, "
+                 f"cada uno entero (firma y cuerpo), sin el resto de la clase: un bloque por archivo, con la ruta en la "
+                 f"primera línea y después los métodos (y los imports nuevos, si agregaste). Archivos: {', '.join(archivos)}.")
+    else:
+        user += (f"\n\nCompletá los `// TODO` que pide la tarea {tarea_id}. Devolvé estos archivos completos, "
+                 f"cada uno en su bloque: {', '.join(archivos)}.")
 
     estimado = int((len(SYSTEM) + len(user)) / 3.4)
     max_tokens = a.max or max(1000, CONTEXTO - estimado - 64)
     etiqueta = f"{tarea_id}-{a.modelo}-intento-{a.intento}"
     cuerpo = {"model": MODELOS[a.modelo], "temperature": 0.2, "max_tokens": max_tokens,
-              "messages": [{"role": "system", "content": SYSTEM}, {"role": "user", "content": user}]}
+              "messages": [{"role": "system", "content": SYSTEM_METODOS if a.metodos else SYSTEM}, {"role": "user", "content": user}]}
     if a.razonar:
         cuerpo["reasoning_effort"] = a.razonar
     reg = LLM / "registros"
     reg.mkdir(exist_ok=True)
     cab = (f"<!-- modelo {MODELOS[a.modelo]}, temperatura 0.2, max_tokens {max_tokens}, "
            f"razonamiento {a.razonar or 'no'} -->\n\n")
-    (reg / f"{etiqueta}.pedido.md").write_text(cab + "## system\n\n" + SYSTEM + "\n\n## user\n\n" + user + "\n",
+    (reg / f"{etiqueta}.pedido.md").write_text(cab + "## system\n\n" + (SYSTEM_METODOS if a.metodos else SYSTEM) + "\n\n## user\n\n" + user + "\n",
                                                 encoding="utf-8")
     if a.solo_ver:
         print(f"pedido guardado (sin mandar): estimado {estimado} tokens")
@@ -174,7 +260,7 @@ def main():
     if ch.get("finish_reason") == "length":
         print("respuesta cortada: no se extrae nada")
         return
-    escribir(extraer_bloques(contenido), archivos)
+    escribir(extraer_bloques(contenido), archivos, a.metodos)
 
 if __name__ == "__main__":
     main()

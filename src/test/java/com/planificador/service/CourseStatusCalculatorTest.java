@@ -91,12 +91,17 @@ class CourseStatusCalculatorTest {
 
     @Test
     void condiciones() {
-        // lo completa otra subtarea (T04c): no lo cambies
+        assertEquals(CourseCondition.PROMOCION, CourseStatusCalculator.evaluate(new CourseTracking(reglas(), List.of(parcial(1, 8), parcial(2, 9)), asistencias(14, 2))).condition());
+        assertEquals(CourseCondition.REGULAR, CourseStatusCalculator.evaluate(new CourseTracking(reglas(), List.of(parcial(1, 7), parcial(2, 9)), asistencias(16, 0))).condition());
+        assertEquals(CourseCondition.LIBRE, CourseStatusCalculator.evaluate(new CourseTracking(reglas(), List.of(parcial(1, 8), parcial(2, 9)), asistencias(11, 5))).condition());
+        assertEquals(CourseCondition.EN_CURSO, CourseStatusCalculator.evaluate(new CourseTracking(reglas(), List.of(parcial(1, 8), parcial(2, 9)), asistencias(10, 0))).condition());
     }
 
     @Test
     void todaviaPuedePromocionar() {
-        // lo completa otra subtarea (T04c): no lo cambies
+        assertTrue(CourseStatusCalculator.evaluate(new CourseTracking(reglas(), List.of(parcial(1, 8), parcial(2, 4)), asistencias(16, 0))).canPromote());
+        assertFalse(CourseStatusCalculator.evaluate(new CourseTracking(reglas(), List.of(parcial(1, 6)), asistencias(5, 0))).canPromote());
+        assertTrue(CourseStatusCalculator.evaluate(new CourseTracking(reglas(), List.of(parcial(1, 6)), asistencias(5, 0))).canRegularize());
     }
 
     @Test

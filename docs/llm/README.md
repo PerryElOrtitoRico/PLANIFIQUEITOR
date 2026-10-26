@@ -45,3 +45,4 @@ Verificado al armar el paquete: los ocultos de T01–T04d compilan contra el esq
 | T03b | esqueleto | Gemma | sí | 3/3 | 3/3 | 0 | 2 min | Gemma | perfecto al primer intento, tests sin comentarios |
 | T04a | esqueleto | Gemma | sí | 2/2 | 3/3 | 0 | 3,4 min | Gemma | bien al primer intento; comentarios con cuentas mal en el test |
 | T04d | esqueleto | Gemma (+ qwen para corregir) | sí, en la 3.ª vuelta | 1/1 | 4/4 | 2 (una cortada) | 15 min | Gemma + corrección de qwen | paso en prosa → `remainingKnown() > 1`; arreglado con el paso en Java |
+| T04c | esqueleto, solo métodos | qwen | sí | 2/2 | 4/4 | 1 (la primera cortada) | 10,4 min (el bueno 1,4) | qwen | primer pedido cortado por largo; con `--metodos` perfecto |

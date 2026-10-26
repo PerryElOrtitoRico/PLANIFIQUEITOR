@@ -65,8 +65,32 @@ public final class CourseStatusCalculator {
 
     /** Condición de la materia. */
     public static CourseStatus evaluate(CourseTracking tracking) {
-        // lo completa otra subtarea (T04c): no lo cambies
-        throw new UnsupportedOperationException();
+        CourseRules rules = tracking.getRules();
+        AttendanceSummary a = attendance(rules, tracking.getAttendance());
+        List<ExamResult> exams = exams(rules, tracking.getEvaluations());
+
+        boolean anyFailed = false;
+        boolean anyOpen = false;
+        boolean allPromo = true;
+        boolean promoPossible = true;
+
+        for (ExamResult e : exams) {
+            if (e.state() == ExamState.DESAPROBADO) anyFailed = true;
+            if (e.state() == ExamState.PENDIENTE || e.state() == ExamState.A_RECUPERAR) anyOpen = true;
+            if (e.effective() == null || e.effective() < rules.getPromotionGrade()) allPromo = false;
+            boolean ok = e.effective() == null || e.effective() >= rules.getPromotionGrade() || e.state() == ExamState.A_RECUPERAR;
+            if (!ok) promoPossible = false;
+        }
+
+        boolean attendanceOpen = rules.getPlannedClasses() > 0 && a.registered() < rules.getPlannedClasses();
+        CourseCondition c;
+        if (a.failed() || anyFailed) c = CourseCondition.LIBRE;
+        else if (anyOpen || attendanceOpen) c = CourseCondition.EN_CURSO;
+        else if (rules.getPromotionGrade() > 0 && allPromo) c = CourseCondition.PROMOCION;
+        else c = CourseCondition.REGULAR;
+
+        boolean canPromote = c != CourseCondition.LIBRE && rules.getPromotionGrade() > 0 && promoPossible;
+        return new CourseStatus(c, a, exams, canPromote, c != CourseCondition.LIBRE);
     }
 
     /** Líneas de texto para mostrar la condición y cuánto falta. */
