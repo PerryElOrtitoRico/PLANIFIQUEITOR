@@ -96,7 +96,14 @@ def extraer_bloques(respuesta):
 
 
 DECL = re.compile(r"(?m)^[ \t]*(?:(?:public|private|protected|static|final|synchronized)\s+)*"
-                  r"(?:<[^>]+>\s+)?[\w.<>\[\], ?]+?\s+(\w+)\s*\([^)]*\)\s*(?:throws\s+[\w., ]+)?\{")
+                  r"(?:<[^>]+>\s+)?[\w.<>\[\], ?]+?\s+(\w+)\s*\(([^)]*)\)\s*(?:throws\s+[\w., ]+)?\{")
+
+
+def clave(m):
+    """nombre(tipos) de una declaración: distingue métodos sobrecargados."""
+    params = [p.strip() for p in m.group(2).split(",") if p.strip()]
+    tipos = [re.sub(r"\bfinal\s+", "", p).rsplit(None, 1)[0].replace(" ", "") for p in params]
+    return f"{m.group(1)}({','.join(tipos)})"
 
 
 def fin_de_bloque(codigo, i):
@@ -135,9 +142,9 @@ def metodos(codigo):
     out = {}
     for m in DECL.finditer(codigo):
         nombre = m.group(1)
-        if nombre in ("if", "for", "while", "switch", "catch", "class", "new", "return"):
+        if nombre.split("(")[0] in ("if", "for", "while", "switch", "catch", "class", "new", "return"):
             continue
-        out[nombre] = (m.start(), fin_de_bloque(codigo, m.end() - 1))
+        out[clave(m)] = (m.start(), fin_de_bloque(codigo, m.end() - 1))
     return out
 
 
@@ -149,7 +156,7 @@ def injertar(ruta, fragmento):
     cambiados = []
     for nombre, (i, f) in nuevos.items():
         viejos = metodos(actual)
-        if nombre not in viejos or nombre == p.stem:
+        if nombre not in viejos or nombre.split("(")[0] == p.stem:
             continue
         vi, vf = viejos[nombre]
         llave_vieja = actual.index("{", DECL.match(actual, vi).end() - 1)

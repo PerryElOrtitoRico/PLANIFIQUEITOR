@@ -20,11 +20,21 @@ class CountdownPanelTest {
 
     @Test
     void muestraLasProximas() throws Exception {
-        // TODO T06
+        UiDatos.cargar(tmp);
+        CountdownPanel p = new CountdownPanel();
+        p.refresh(HOY);
+        assertEquals(4, p.labels().size());
+        assertEquals("⏳ Charla es hoy", p.labels().get(0).getText());
+        assertEquals("⏳ Primer parcial (Mecánica de Fluidos) en 6 días", p.labels().get(2).getText());
+        assertEquals(CountdownPanel.NORMAL, p.labels().get(3).getForeground());
     }
 
     @Test
     void sinFechas() throws Exception {
-        // TODO T06
+        UiDatos.cargar(tmp);
+        CountdownPanel p = new CountdownPanel();
+        p.refresh(LocalDate.of(2027, 6, 1));
+        assertEquals(1, p.labels().size());
+        assertEquals("Sin fechas importantes en los próximos 30 días", p.labels().get(0).getText());
     }
 }

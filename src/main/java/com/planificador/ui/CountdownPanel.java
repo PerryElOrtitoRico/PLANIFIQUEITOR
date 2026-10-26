@@ -31,8 +31,26 @@ public class CountdownPanel extends JPanel {
 
     /** Arma una etiqueta por fecha próxima (de hoy a DIAS días); si no hay, una sola etiqueta que lo dice. */
     void refresh(LocalDate today) {
-        // TODO T06
-        throw new UnsupportedOperationException();
+        removeAll();
+        DataManager dm = DataManager.getInstance();
+        List<ImportantDate> proximas = Countdown.upcoming(dm.getImportantDates(), today, DIAS);
+        if (proximas.isEmpty()) {
+            JLabel l = new JLabel("Sin fechas importantes en los próximos " + DIAS + " días");
+            l.setForeground(NORMAL);
+            add(l);
+        } else {
+            for (ImportantDate d : proximas) {
+                Subject s = dm.getSubjectById(d.getSubjectId());
+                String nombre = s != null ? s.getName() : null;
+                JLabel l = new JLabel("⏳ " + Countdown.text(d, nombre, today));
+                Long n = Countdown.daysUntil(d.getDate(), today);
+                l.setForeground(n != null && n <= 7 ? URGENTE : NORMAL);
+                l.setFont(new Font("SansSerif", Font.BOLD, 13));
+                add(l);
+            }
+        }
+        revalidate();
+        repaint();
     }
 
     /** Las etiquetas que hay ahora (para los tests). */

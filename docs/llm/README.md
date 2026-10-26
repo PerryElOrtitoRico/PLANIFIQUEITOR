@@ -49,3 +49,4 @@ Verificado al armar el paquete: los ocultos compilan contra el esqueleto y falla
 | T05 | esqueleto, solo métodos | qwen | sí | 2/2 (+9 viejos) | 4/4 | 0 | 2,4 min | qwen | perfecto al primer intento; JSON viejo carga igual |
 | T07 | esqueleto, solo métodos | qwen | sí | 2/2 | 2/2 | 0 | 1 min | qwen | perfecto al primer intento |
 | T08 | esqueleto, solo métodos | qwen | sí | 2/2 | 2/2 | 0 | 1,3 min | qwen | bloque sin abrir y métodos hechos `public`: lo absorbe el extractor |
+| T06 | esqueleto, solo métodos | Gemma | sí | 2/2 | 2/2 | 0 | 0,6 min | Gemma | perfecto al primer intento |
