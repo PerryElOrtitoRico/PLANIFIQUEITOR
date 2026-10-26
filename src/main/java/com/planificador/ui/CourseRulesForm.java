@@ -64,7 +64,11 @@ public class CourseRulesForm extends JPanel {
 
     /** Las reglas que quedaron cargadas en el formulario. */
     public CourseRules toRules() {
-        // TODO T09a
-        throw new UnsupportedOperationException();
+        int n = (Integer) examCount.getValue();
+        List<Boolean> r = new ArrayList<>();
+        for (int i = 0; i < n; i++) {
+            r.add(i < retakeBoxes.size() && retakeBoxes.get(i).isSelected());
+        }
+        return new CourseRules(((Number) minAttendance.getValue()).doubleValue(), ((Number) passGrade.getValue()).doubleValue(), ((Number) promotionGrade.getValue()).doubleValue(), n, r, (Integer) plannedClasses.getValue());
     }
 }

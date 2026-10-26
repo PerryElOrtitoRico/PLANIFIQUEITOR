@@ -36,7 +36,20 @@ public class EvaluationForm extends JPanel {
      * @throws IllegalArgumentException si la fecha no está vacía y no es AAAA-MM-DD
      */
     public Evaluation toEvaluation(String id) {
-        // TODO T09a
-        throw new UnsupportedOperationException();
+        boolean parcial = kindCombo.getSelectedIndex() == 0;
+        String kind = parcial ? Evaluation.PARCIAL : Evaluation.TP;
+        int number = (Integer) numberSpinner.getValue();
+        boolean retake = parcial && retakeCheck.isSelected();
+        double grade = ((Number) gradeSpinner.getValue()).doubleValue();
+        String text = dateField.getText().trim();
+        String date = null;
+        if (!text.isEmpty()) {
+            try {
+                date = LocalDate.parse(text).toString();
+            } catch (DateTimeParseException e) {
+                throw new IllegalArgumentException("Fecha inválida: usá AAAA-MM-DD");
+            }
+        }
+        return new Evaluation(id, kind, number, retake, grade, date);
     }
 }
