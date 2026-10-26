@@ -36,36 +36,46 @@ class CourseStatusCalculatorTest {
 
     @Test
     void asistenciaConClasesConocidas() {
-        // TODO T04a
+        // lo completa otra subtarea (T04a): no lo cambies
     }
 
     @Test
     void asistenciaSinClasesConocidas() {
-        // TODO T04a
+        // lo completa otra subtarea (T04a): no lo cambies
     }
 
     @Test
     void estadosDeLosParciales() {
-        // TODO T04b
+        List<ExamResult> r = CourseStatusCalculator.exams(reglas(), List.of(parcial(1, 7), parcial(2, 4)));
+        assertEquals(ExamState.APROBADO, r.get(0).state());
+        assertEquals(ExamState.A_RECUPERAR, r.get(1).state());
+
+        r = CourseStatusCalculator.exams(reglas(), List.of());
+        assertEquals(ExamState.PENDIENTE, r.get(0).state());
     }
 
     @Test
     void elRecuperatorioReemplazaLaNota() {
-        // TODO T04b
+        List<ExamResult> r = CourseStatusCalculator.exams(reglas(), List.of(parcial(2, 4), recuperatorio(2, 7)));
+        assertEquals(ExamState.APROBADO, r.get(1).state());
+        assertEquals(7.0, r.get(1).effective());
+
+        r = CourseStatusCalculator.exams(reglas(), List.of(parcial(2, 4), recuperatorio(2, 3)));
+        assertEquals(ExamState.DESAPROBADO, r.get(1).state());
     }
 
     @Test
     void condiciones() {
-        // TODO T04c
+        // lo completa otra subtarea (T04c): no lo cambies
     }
 
     @Test
     void todaviaPuedePromocionar() {
-        // TODO T04c
+        // lo completa otra subtarea (T04c): no lo cambies
     }
 
     @Test
     void textos() {
-        // TODO T04d
+        // lo completa otra subtarea (T04d): no lo cambies
     }
 }

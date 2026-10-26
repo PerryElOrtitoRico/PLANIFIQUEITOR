@@ -38,3 +38,4 @@ Verificado al armar el paquete: los ocultos de T01–T04d compilan contra el esq
 | Tarea | Método | Modelo | ¿Compila? | Tests propios | Ocultos k/n | Correcciones | Tiempo LLM | Quién | Notas |
 |---|---|---|---|---|---|---|---|---|---|
 | T03a | esqueleto | qwen | sí (tras arreglar el extractor) | 2/2 | 3/3 | 0 | 1,6 min | qwen | dos archivos en un bloque: lo separó el extractor |
+| T04b | esqueleto | qwen | sí | 2/2 | 3/3 | 0 | 2,2 min | qwen | perfecto al primer intento |
