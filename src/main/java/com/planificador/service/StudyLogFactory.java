@@ -19,7 +19,9 @@ public final class StudyLogFactory {
      */
     public static StudyLog fromWorkCycle(String id, String subjectId, String topicId, String topicTitle,
                                          LocalDateTime end, int minutes) {
-        // TODO T03b
-        throw new UnsupportedOperationException();
+        LocalDateTime start = end.minusMinutes(minutes);
+        String date = end.toLocalDate().toString();
+        String startTime = start.format(HORA);
+        return new StudyLog(id, subjectId, topicId, topicTitle, date, startTime, minutes);
     }
 }

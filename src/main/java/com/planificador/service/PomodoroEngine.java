@@ -52,13 +52,16 @@ public final class PomodoroEngine {
 
     /** Termina la fase actual sin contarla: de WORK pasa a SHORT_BREAK (no suma ciclo); de un descanso pasa a WORK. */
     public void skip() {
-        // lo completa otra subtarea (T03b): no lo cambies
-        throw new UnsupportedOperationException();
+        if (phase == PomodoroPhase.WORK) {
+            phase = PomodoroPhase.SHORT_BREAK;
+        } else {
+            phase = PomodoroPhase.WORK;
+        }
+        secondsLeft = minutesFor(phase) * 60;
     }
 
     /** Segundos como "MM:SS" (por ejemplo 1500 → "25:00", 65 → "01:05"). */
     public static String format(int seconds) {
-        // lo completa otra subtarea (T03b): no lo cambies
-        throw new UnsupportedOperationException();
+        return String.format("%02d:%02d", seconds / 60, seconds % 60);
     }
 }

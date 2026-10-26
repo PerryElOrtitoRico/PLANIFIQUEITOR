@@ -47,11 +47,18 @@ class PomodoroEngineTest {
 
     @Test
     void saltearNoSumaCiclos() {
-        // lo completa otra subtarea (T03b): no lo cambies
+        PomodoroEngine e = new PomodoroEngine(chicos());
+        e.skip();
+        assertEquals(PomodoroPhase.SHORT_BREAK, e.phase());
+        assertEquals(60, e.secondsLeft());
+        assertEquals(0, e.completedWorkCycles());
+        e.skip();
+        assertEquals(PomodoroPhase.WORK, e.phase());
     }
 
     @Test
     void formatoMinutosSegundos() {
-        // lo completa otra subtarea (T03b): no lo cambies
+        assertEquals("25:00", PomodoroEngine.format(1500));
+        assertEquals("01:05", PomodoroEngine.format(65));
     }
 }
