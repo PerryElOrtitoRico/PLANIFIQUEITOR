@@ -8,7 +8,7 @@ import java.awt.event.WindowEvent;
 public class PomodoroDialog extends JDialog {
 
     public PomodoroDialog(MainWindow owner) {
-        super(owner, "🍅 Pomodoro", false);
+        super(owner, "Pomodoro", false);
         PomodoroPanel panel = new PomodoroPanel(() -> {
             if (owner != null) owner.refreshAllPanels();
         });

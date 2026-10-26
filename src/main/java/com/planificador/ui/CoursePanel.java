@@ -28,7 +28,7 @@ public class CoursePanel extends JPanel {
     final JPanel statusPanel = new JPanel();
     final JTable evaluationsTable = new JTable();
     final JTable attendanceTable = new JTable();
-    final JTextField attendanceDate = new JTextField(LocalDate.now().toString(), 10);
+    final JTextField attendanceDate = new JTextField(LocalDate.now().toString(), 8);
 
     public CoursePanel(MainWindow mainFrame) {
         this.mainFrame = mainFrame;
@@ -61,7 +61,7 @@ public class CoursePanel extends JPanel {
         presentBtn.addActionListener(e -> addAttendance(true));
         JButton absentBtn = new JButton("✘ Ausente");
         absentBtn.addActionListener(e -> addAttendance(false));
-        JButton delAttBtn = new JButton("🗑 Borrar clase");
+        JButton delAttBtn = new JButton("🗑 Borrar");
         delAttBtn.addActionListener(e -> deleteAttendance());
 
         JPanel gradesBox = new JPanel(new BorderLayout(0, 4));
@@ -74,7 +74,7 @@ public class CoursePanel extends JPanel {
 
         JPanel attBox = new JPanel(new BorderLayout(0, 4));
         JPanel attBtns = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
-        attBtns.add(new JLabel("Asistencia — fecha:"));
+        attBtns.add(new JLabel("Asistencia:"));
         attBtns.add(attendanceDate);
         attBtns.add(presentBtn);
         attBtns.add(absentBtn);
@@ -89,7 +89,9 @@ public class CoursePanel extends JPanel {
         JPanel right = new JPanel(new BorderLayout(0, 12));
         JPanel statusWithBtn = new JPanel(new BorderLayout());
         statusWithBtn.add(status, BorderLayout.CENTER);
-        statusWithBtn.add(rulesBtn, BorderLayout.EAST);
+        JPanel rulesBox = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0));
+        rulesBox.add(rulesBtn);
+        statusWithBtn.add(rulesBox, BorderLayout.EAST);
         right.add(statusWithBtn, BorderLayout.NORTH);
         right.add(tables, BorderLayout.CENTER);
         add(right, BorderLayout.CENTER);
@@ -124,7 +126,8 @@ public class CoursePanel extends JPanel {
             conditionLabel.setText(s.getName());
             List<String> lines = statusLines(s);
             for (int i = 0; i < lines.size(); i++) {
-                JLabel l = new JLabel(lines.get(i));
+                // HTML con ancho fijo: las líneas largas se parten en vez de cortarse
+                JLabel l = new JLabel("<html><div style='width:330px'>" + lines.get(i) + "</div></html>");
                 if (i == 0) {
                     l.setFont(new Font("SansSerif", Font.BOLD, 15));
                     if (s.getCourse() != null) l.setForeground(conditionColor(CourseStatusCalculator.evaluate(t).condition()));

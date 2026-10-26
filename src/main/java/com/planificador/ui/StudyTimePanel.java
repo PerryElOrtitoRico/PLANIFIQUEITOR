@@ -65,7 +65,7 @@ public class StudyTimePanel extends JPanel {
 
         JPanel tables = new JPanel(new GridLayout(2, 1, 0, 15));
         tables.add(titled("Semana elegida: planeado (guía semanal) y estudiado (Pomodoro)", weekTable));
-        tables.add(titled("Últimas " + SEMANAS + " semanas (horas estudiadas)", historyTable));
+        tables.add(titled("Últimas " + SEMANAS + " semanas (tiempo estudiado con el Pomodoro)", historyTable));
         add(tables, BorderLayout.CENTER);
 
         refresh();
