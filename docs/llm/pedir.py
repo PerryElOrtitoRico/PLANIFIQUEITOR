@@ -62,14 +62,39 @@ def marcar_todos(codigo, tarea_id):
 
 
 def extraer_bloques(respuesta):
+    """Bloques de código con la ruta en la primera línea. Si un bloque trae varios archivos pegados
+    (otra línea `// ruta.java` en el medio), se separan por esas líneas."""
     bloques = {}
     for m in re.finditer(r"```[a-zA-Z]*\n(.*?)```", respuesta, re.S):
-        cuerpo = m.group(1)
-        primera, _, resto = cuerpo.partition("\n")
-        r = re.match(r"\s*//\s*(\S+\.java)\s*$", primera)
-        if r:
-            bloques[r.group(1)] = resto if resto.lstrip().startswith("package") else cuerpo
+        actual, lineas = None, []
+        for linea in m.group(1).split("\n"):
+            r = re.match(r"\s*//\s*(src/\S+\.java)\s*$", linea)
+            if r:
+                if actual:
+                    bloques[actual] = "\n".join(lineas)
+                actual, lineas = r.group(1), []
+            elif actual:
+                lineas.append(linea)
+        if actual:
+            bloques[actual] = "\n".join(lineas)
     return bloques
+
+
+def extraer_de_registro(etiqueta, archivos):
+    contenido = (LLM / "registros" / f"{etiqueta}.respuesta.md").read_text(encoding="utf-8")
+    escribir(extraer_bloques(contenido), archivos)
+
+
+def escribir(bloques, archivos):
+    for ruta, codigo in bloques.items():
+        if ruta in archivos:
+            (REPO / ruta).write_text(codigo.strip("\n") + "\n", encoding="utf-8")
+            print("  escrito", ruta)
+        else:
+            print("  IGNORADO (no es de la tarea)", ruta)
+    for ruta in archivos:
+        if ruta not in bloques:
+            print("  FALTA en la respuesta", ruta)
 
 
 def main():
@@ -81,11 +106,16 @@ def main():
     ap.add_argument("--razonar")
     ap.add_argument("--solo-ver", action="store_true")
     ap.add_argument("--max", type=int, default=0)
+    ap.add_argument("--reextraer", action="store_true", help="no pide nada: vuelve a extraer la respuesta guardada")
     a = ap.parse_args()
 
     tarea_path = pathlib.Path(a.tarea)
     tarea_id = tarea_path.name.split("-")[0]
     secciones, archivos, tarea = leer_cabecera(tarea_path.read_text(encoding="utf-8"))
+
+    if a.reextraer:
+        extraer_de_registro(f"{tarea_id}-{a.modelo}-intento-{a.intento}", archivos)
+        return
 
     bloques_arch = []
     for ruta in archivos:
@@ -140,17 +170,7 @@ def main():
     if ch.get("finish_reason") == "length":
         print("respuesta cortada: no se extrae nada")
         return
-    bloques = extraer_bloques(contenido)
-    for ruta, codigo in bloques.items():
-        if ruta in archivos:
-            (REPO / ruta).write_text(codigo.rstrip() + "\n", encoding="utf-8")
-            print("  escrito", ruta)
-        else:
-            print("  IGNORADO (no es de la tarea)", ruta)
-    for ruta in archivos:
-        if ruta not in bloques:
-            print("  FALTA en la respuesta", ruta)
-
+    escribir(extraer_bloques(contenido), archivos)
 
 if __name__ == "__main__":
     main()

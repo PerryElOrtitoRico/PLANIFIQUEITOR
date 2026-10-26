@@ -1,0 +1,11 @@
+Compiled from "CourseStatusCalculator.java"
+public final class com.planificador.service.CourseStatusCalculator {
+  private static final java.util.Locale AR;
+  private com.planificador.service.CourseStatusCalculator();
+  public static com.planificador.service.AttendanceSummary attendance(com.planificador.model.CourseRules, java.util.List<com.planificador.model.AttendanceRecord>);
+  public static java.util.List<com.planificador.service.ExamResult> exams(com.planificador.model.CourseRules, java.util.List<com.planificador.model.Evaluation>);
+  public static com.planificador.service.CourseStatus evaluate(com.planificador.model.CourseTracking);
+  public static java.util.List<java.lang.String> describe(com.planificador.service.CourseStatus, com.planificador.model.CourseRules);
+  public static java.lang.String formatGrade(double);
+  static {};
+}

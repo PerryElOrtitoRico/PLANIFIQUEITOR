@@ -1,0 +1,7 @@
+Compiled from "StudyLogFactory.java"
+public final class com.planificador.service.StudyLogFactory {
+  private static final java.time.format.DateTimeFormatter HORA;
+  private com.planificador.service.StudyLogFactory();
+  public static com.planificador.model.StudyLog fromWorkCycle(java.lang.String, java.lang.String, java.lang.String, java.lang.String, java.time.LocalDateTime, int);
+  static {};
+}

@@ -1,0 +1,15 @@
+Compiled from "PomodoroEngine.java"
+public final class com.planificador.service.PomodoroEngine {
+  private final com.planificador.model.PomodoroSettings settings;
+  private com.planificador.service.PomodoroPhase phase;
+  private int secondsLeft;
+  private int completedWorkCycles;
+  public com.planificador.service.PomodoroEngine(com.planificador.model.PomodoroSettings);
+  public com.planificador.service.PomodoroPhase phase();
+  public int secondsLeft();
+  public int completedWorkCycles();
+  public int minutesFor(com.planificador.service.PomodoroPhase);
+  public com.planificador.service.PomodoroPhase tick();
+  public void skip();
+  public static java.lang.String format(int);
+}

@@ -24,21 +24,34 @@ class PomodoroEngineTest {
 
     @Test
     void minutosDeCadaFase() {
-        // TODO T03a
+        PomodoroEngine e = new PomodoroEngine(new PomodoroSettings());
+        assertEquals(25, e.minutesFor(PomodoroPhase.WORK));
+        assertEquals(15, e.minutesFor(PomodoroPhase.LONG_BREAK));
+        assertEquals(1500, e.secondsLeft());
     }
 
     @Test
     void cicloCompletoConDescansoLargo() {
-        // TODO T03a
+        PomodoroEngine e = new PomodoroEngine(chicos());
+        assertEquals(PomodoroPhase.WORK, avanzar(e, 120));
+        assertEquals(PomodoroPhase.SHORT_BREAK, e.phase());
+        assertEquals(1, e.completedWorkCycles());
+
+        assertEquals(PomodoroPhase.SHORT_BREAK, avanzar(e, 60));
+        assertEquals(PomodoroPhase.WORK, e.phase());
+
+        assertEquals(PomodoroPhase.WORK, avanzar(e, 120));
+        assertEquals(PomodoroPhase.LONG_BREAK, e.phase());
+        assertEquals(180, e.secondsLeft());
     }
 
     @Test
     void saltearNoSumaCiclos() {
-        // TODO T03b
+        // lo completa otra subtarea (T03b): no lo cambies
     }
 
     @Test
     void formatoMinutosSegundos() {
-        // TODO T03b
+        // lo completa otra subtarea (T03b): no lo cambies
     }
 }

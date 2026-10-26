@@ -25,25 +25,40 @@ public final class PomodoroEngine {
 
     /** Minutos que dura la fase según los ajustes. */
     public int minutesFor(PomodoroPhase p) {
-        // TODO T03a
-        throw new UnsupportedOperationException();
+        return switch (p) {
+            case WORK -> settings.getWorkMinutes();
+            case SHORT_BREAK -> settings.getShortBreakMinutes();
+            case LONG_BREAK -> settings.getLongBreakMinutes();
+        };
     }
 
     /** Pasa un segundo. Si la fase termina, pasa a la siguiente y devuelve la fase que terminó; si no, devuelve null. */
     public PomodoroPhase tick() {
-        // TODO T03a
-        throw new UnsupportedOperationException();
+        if (secondsLeft > 0) secondsLeft--;
+        if (secondsLeft > 0) return null;
+
+        PomodoroPhase finished = phase;
+        if (phase == PomodoroPhase.WORK) {
+            completedWorkCycles++;
+            int every = Math.max(1, settings.getCyclesBeforeLongBreak());
+            phase = (completedWorkCycles % every == 0) ? PomodoroPhase.LONG_BREAK : PomodoroPhase.SHORT_BREAK;
+        } else {
+            phase = PomodoroPhase.WORK;
+        }
+
+        secondsLeft = minutesFor(phase) * 60;
+        return finished;
     }
 
     /** Termina la fase actual sin contarla: de WORK pasa a SHORT_BREAK (no suma ciclo); de un descanso pasa a WORK. */
     public void skip() {
-        // TODO T03b
+        // lo completa otra subtarea (T03b): no lo cambies
         throw new UnsupportedOperationException();
     }
 
     /** Segundos como "MM:SS" (por ejemplo 1500 → "25:00", 65 → "01:05"). */
     public static String format(int seconds) {
-        // TODO T03b
+        // lo completa otra subtarea (T03b): no lo cambies
         throw new UnsupportedOperationException();
     }
 }

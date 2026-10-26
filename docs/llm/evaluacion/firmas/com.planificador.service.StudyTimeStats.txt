@@ -1,0 +1,10 @@
+Compiled from "StudyTimeStats.java"
+public final class com.planificador.service.StudyTimeStats {
+  private com.planificador.service.StudyTimeStats();
+  public static java.time.LocalDate weekStart(java.time.LocalDate);
+  public static java.util.Map<java.lang.String, java.lang.Integer> minutesBySubject(java.util.List<com.planificador.model.StudyLog>, java.time.LocalDate);
+  public static java.util.Map<java.lang.String, java.lang.Integer> plannedMinutesBySubject(java.util.List<com.planificador.model.StudySession>);
+  public static java.util.List<com.planificador.service.SubjectWeekTime> compareWeek(java.util.List<java.lang.String>, java.util.List<com.planificador.model.StudyLog>, java.util.List<com.planificador.model.StudySession>, java.time.LocalDate);
+  public static java.util.SortedMap<java.time.LocalDate, java.lang.Integer> minutesByWeek(java.util.List<com.planificador.model.StudyLog>, java.lang.String);
+  public static java.lang.String formatMinutes(int);
+}
