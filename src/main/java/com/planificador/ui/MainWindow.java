@@ -15,6 +15,11 @@ public class MainWindow extends JFrame {
         setMinimumSize(new Dimension(900, 600));
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 
+        java.net.URL icono = MainWindow.class.getResource("/icono.png");
+        if (icono != null) {
+            setIconImage(new ImageIcon(icono).getImage());
+        }
+
         initUI();
     }
 
