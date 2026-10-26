@@ -11,6 +11,12 @@ import java.nio.file.attribute.FileTime;
 import java.util.List;
 import java.util.Map;
 
+import com.planificador.model.CourseRules;
+import com.planificador.model.Evaluation;
+import com.planificador.model.PomodoroSettings;
+import com.planificador.model.StudyLog;
+import com.planificador.model.Subject;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 class DataManagerTest {
@@ -127,5 +133,15 @@ class DataManagerTest {
             assertEquals(1, respaldos.size(), "debe quedar una copia del archivo dañado");
             assertEquals("{ esto no es json válido", Files.readString(respaldos.get(0), StandardCharsets.UTF_8));
         }
+    }
+
+    @Test
+    void cargaUnJsonViejoSinLosCamposNuevos() throws IOException {
+        // TODO T05
+    }
+
+    @Test
+    void guardaYRecargaLoNuevo() {
+        // TODO T05
     }
 }

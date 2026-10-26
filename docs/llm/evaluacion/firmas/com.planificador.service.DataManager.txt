@@ -1,0 +1,44 @@
+Compiled from "DataManager.java"
+public class com.planificador.service.DataManager {
+  private static final java.lang.String FILE_NAME;
+  private static final java.lang.String APP_DIR;
+  private static com.planificador.service.DataManager instance;
+  private final java.nio.file.Path dataFile;
+  private java.util.List<com.planificador.model.Subject> subjects;
+  private java.util.List<com.planificador.model.StudySession> studySessions;
+  private java.util.List<com.planificador.model.ImportantDate> importantDates;
+  private java.util.List<com.planificador.model.StudyLog> studyLogs;
+  private com.planificador.model.PomodoroSettings pomodoroSettings;
+  com.planificador.service.DataManager(java.nio.file.Path, java.util.List<java.nio.file.Path>);
+  public static synchronized com.planificador.service.DataManager getInstance();
+  public static synchronized void initForTests(java.nio.file.Path);
+  static java.nio.file.Path resolveDataFile(java.util.Map<java.lang.String, java.lang.String>, java.nio.file.Path);
+  public java.nio.file.Path getDataFile();
+  private void migrateLegacyFile(java.util.List<java.nio.file.Path>);
+  private static long lastModified(java.nio.file.Path);
+  public java.util.List<com.planificador.model.Subject> getSubjects();
+  public java.util.List<com.planificador.model.StudySession> getStudySessions();
+  public java.util.List<com.planificador.model.ImportantDate> getImportantDates();
+  public java.util.List<com.planificador.model.StudyLog> getStudyLogs();
+  public void addStudyLog(com.planificador.model.StudyLog);
+  public com.planificador.model.PomodoroSettings getPomodoroSettings();
+  public void setPomodoroSettings(com.planificador.model.PomodoroSettings);
+  public com.planificador.model.Subject getSubjectById(java.lang.String);
+  public void addSubject(com.planificador.model.Subject);
+  public void removeSubject(java.lang.String);
+  public void addStudySession(com.planificador.model.StudySession);
+  public void removeStudySession(java.lang.String);
+  public void addImportantDate(com.planificador.model.ImportantDate);
+  public void removeImportantDate(java.lang.String);
+  public void saveData();
+  public void loadData();
+  private void applyLoaded(com.planificador.service.DataManager$AppData);
+  private void backupDamagedFile();
+  public void loadInitialDemoData();
+  private static boolean lambda$removeImportantDate$5(java.lang.String, com.planificador.model.ImportantDate);
+  private static boolean lambda$removeStudySession$4(java.lang.String, com.planificador.model.StudySession);
+  private static boolean lambda$removeSubject$3(java.lang.String, com.planificador.model.ImportantDate);
+  private static boolean lambda$removeSubject$2(java.lang.String, com.planificador.model.StudySession);
+  private static boolean lambda$removeSubject$1(java.lang.String, com.planificador.model.Subject);
+  private static boolean lambda$getSubjectById$0(java.lang.String, com.planificador.model.Subject);
+}

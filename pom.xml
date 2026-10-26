@@ -60,6 +60,16 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>3.2.5</version>
+                <configuration>
+                    <!-- Los tests nunca tocan los datos reales ni abren ventanas -->
+                    <environmentVariables>
+                        <XDG_DATA_HOME>${project.build.directory}/test-xdg-data</XDG_DATA_HOME>
+                    </environmentVariables>
+                    <systemPropertyVariables>
+                        <java.awt.headless>true</java.awt.headless>
+                        <user.home>${project.build.directory}/test-home</user.home>
+                    </systemPropertyVariables>
+                </configuration>
             </plugin>
 
             <!-- Executable JAR with Dependencies Plugin -->
