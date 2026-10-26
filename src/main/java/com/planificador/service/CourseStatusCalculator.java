@@ -18,8 +18,27 @@ public final class CourseStatusCalculator {
 
     /** Asistencia: porcentaje, faltas y cuántas faltas quedan. */
     public static AttendanceSummary attendance(CourseRules rules, List<AttendanceRecord> records) {
-        // lo completa otra subtarea (T04a): no lo cambies
-        throw new UnsupportedOperationException();
+        int registered = records.size();
+        int present = 0;
+        for (AttendanceRecord r : records) {
+            if (r.isPresent()) {
+                present++;
+            }
+        }
+        int absent = registered - present;
+        double percent = registered == 0 ? 100.0 : present * 100.0 / registered;
+        int planned = rules.getPlannedClasses();
+
+        if (planned > 0) {
+            // allowed = floor(planned * (100.0 - minAttendancePercent) / 100.0)
+            // Agregamos 1e-9 para manejar el redondeo de forma robusta al floor
+            int allowed = (int) Math.floor(planned * (100.0 - rules.getMinAttendancePercent()) / 100.0 + 1e-9);
+            int remaining = allowed - absent;
+            return new AttendanceSummary(registered, present, absent, percent, remaining < 0, true, remaining);
+        } else {
+            boolean failed = registered > 0 && percent < rules.getMinAttendancePercent();
+            return new AttendanceSummary(registered, present, absent, percent, failed, false, 0);
+        }
     }
 
     /** Un ExamResult por parcial, del 1 a rules.getExamCount(). */

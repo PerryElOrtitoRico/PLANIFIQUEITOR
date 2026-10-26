@@ -36,12 +36,37 @@ class CourseStatusCalculatorTest {
 
     @Test
     void asistenciaConClasesConocidas() {
-        // lo completa otra subtarea (T04a): no lo cambies
+        // Test 1: 8 presentes, 2 ausentes. Total 10. 10 * 100 / 10 = 100%.
+        // Planned = 16. MinAttendancePercent = 75.
+        // Allowed = floor(16 * (100 - 75) / 100) = floor(16 * 0.25) = floor(4.0) = 4.
+        // Remaining = 4 - 2 = 2.
+        AttendanceSummary a1 = CourseStatusCalculator.attendance(reglas(), asistencias(8, 2));
+        assertEquals(80.0, a1.percent(), 1e-9);
+        assertEquals(2, a1.remainingAbsences());
+        assertFalse(a1.failed());
+
+        // Test 2: 4 presentes, 5 ausentes. Total 9. 9 * 100 / 9 = 100%.
+        // Allowed = 4.
+        // Remaining = 4 - 5 = -1. Failed = true.
+        AttendanceSummary a2 = CourseStatusCalculator.attendance(reglas(), asistencias(4, 5));
+        assertTrue(a2.failed());
     }
 
     @Test
     void asistenciaSinClasesConocidas() {
-        // lo completa otra subtarea (T04a): no lo cambies
+        // Reglas: MinAttendancePercent = 75.
+        // Test 1: 3 presentes, 1 ausente. Total 4. Percent = 3/4 * 100 = 75.0%.
+        // Planned = 0. Failed = (4 > 0 && 75.0 < 75) -> false.
+        CourseRules r1 = new CourseRules(75, 6, 8, 2, List.of(true, true), 0);
+        AttendanceSummary a1 = CourseStatusCalculator.attendance(r1, asistencias(3, 1));
+        assertFalse(a1.failed());
+        assertFalse(a1.remainingKnown());
+
+        // Test 2: 2 presentes, 1 ausente. Total 3. Percent = 2/3 * 100 = 66.66...%.
+        // Planned = 0. Failed = (3 > 0 && 66.66... < 75) -> true.
+        CourseRules r2 = new CourseRules(75, 6, 8, 2, List.of(true, true), 0);
+        AttendanceSummary a2 = CourseStatusCalculator.attendance(r2, asistencias(2, 1));
+        assertTrue(a2.failed());
     }
 
     @Test
