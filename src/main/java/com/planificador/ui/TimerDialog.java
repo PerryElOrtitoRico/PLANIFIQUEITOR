@@ -9,6 +9,7 @@ public class TimerDialog extends JDialog {
     private JLabel timerLabel;
     private JButton startPauseBtn;
     private boolean isRunning = false;
+    private long endNanos;
 
     public TimerDialog(Frame owner, int initialMinutes) {
         super(owner, "⏱Sesión de Estudio (Cronómetro)", true);
@@ -39,8 +40,8 @@ public class TimerDialog extends JDialog {
         add(btnPanel, BorderLayout.SOUTH);
 
         timer = new Timer(1000, e -> {
+            secondsRemaining = (int) Math.max(0, Math.ceil((endNanos - System.nanoTime()) / 1e9));
             if (secondsRemaining > 0) {
-                secondsRemaining--;
                 timerLabel.setText(formatTime(secondsRemaining));
             } else {
                 timer.stop();
@@ -56,6 +57,7 @@ public class TimerDialog extends JDialog {
             startPauseBtn.setText("▶ Reanudar");
             isRunning = false;
         } else {
+            endNanos = System.nanoTime() + secondsRemaining * 1_000_000_000L;
             timer.start();
             startPauseBtn.setText("⏸Pausar");
             isRunning = true;

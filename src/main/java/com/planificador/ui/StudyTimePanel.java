@@ -67,6 +67,11 @@ public class StudyTimePanel extends JPanel {
         refresh();
     }
 
+    /** El tiempo por materia cuenta solo los Pomodoro (las sesiones de la guía ya están en "planeado"). */
+    private static List<com.planificador.model.StudyLog> pomodoroLogs(DataManager dm) {
+        return dm.getStudyLogs().stream().filter(l -> !l.isFromGuide()).toList();
+    }
+
     private static JComponent titled(String titulo, JTable tabla) {
         JPanel p = new JPanel(new BorderLayout(0, 5));
         JLabel l = new JLabel(titulo);
@@ -89,7 +94,7 @@ public class StudyTimePanel extends JPanel {
         DefaultTableModel m = readOnlyModel(new Object[]{"Materia", "Planeado", "Estudiado", "Avance"});
         List<String> ids = new ArrayList<>();
         for (Subject s : dm.getSubjects()) ids.add(s.getId());
-        List<SubjectWeekTime> times = StudyTimeStats.compareWeek(ids, dm.getStudyLogs(), dm.getStudySessions(), weekStart);
+        List<SubjectWeekTime> times = StudyTimeStats.compareWeek(ids, pomodoroLogs(dm), dm.getStudySessions(), weekStart);
         for (int i = 0; i < times.size(); i++) {
             SubjectWeekTime t = times.get(i);
             String avance = t.plannedMinutes() > 0 ? (t.actualMinutes() * 100 / t.plannedMinutes()) + " %" : "—";
@@ -109,7 +114,7 @@ public class StudyTimePanel extends JPanel {
         DefaultTableModel m = readOnlyModel(cols);
         for (int w = weeks - 1; w >= 0; w--) {
             LocalDate ws = lastWeekStart.minusWeeks(w);
-            Map<String, Integer> mins = StudyTimeStats.minutesBySubject(dm.getStudyLogs(), ws);
+            Map<String, Integer> mins = StudyTimeStats.minutesBySubject(pomodoroLogs(dm), ws);
             Object[] row = new Object[cols.length];
             row[0] = ws.format(DIA);
             int total = 0;

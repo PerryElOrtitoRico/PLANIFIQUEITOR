@@ -1,7 +1,8 @@
 package com.planificador.model;
 
 /**
- * Tiempo de estudio que de verdad se hizo (un ciclo de Pomodoro terminado).
+ * Tiempo de estudio que de verdad se hizo (un ciclo de Pomodoro terminado o una sesión de la guía marcada como hecha).
+ * Es la base del historial (calendario); el tiempo por materia solo cuenta los de Pomodoro.
  * No es lo mismo que {@link StudySession}, que es lo planeado en la guía semanal.
  */
 public class StudyLog {
@@ -12,6 +13,7 @@ public class StudyLog {
     private String date;       // YYYY-MM-DD: día en que terminó el ciclo
     private String startTime;  // HH:mm
     private int minutes;
+    private String source;     // null = Pomodoro; "guia" = sesión de la guía semanal marcada como hecha
 
     public StudyLog(String id, String subjectId, String topicId, String topicTitle,
                     String date, String startTime, int minutes) {
@@ -31,4 +33,6 @@ public class StudyLog {
     public String getDate() { return date; }
     public String getStartTime() { return startTime; }
     public int getMinutes() { return minutes; }
+    public boolean isFromGuide() { return "guia".equals(source); }
+    public void setSource(String source) { this.source = source; }
 }

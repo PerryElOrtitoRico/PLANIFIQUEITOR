@@ -111,8 +111,7 @@ public class WeeklyPanel extends JPanel {
                     chk.setSelected(s.isCompleted());
                     chk.setOpaque(false);
                     chk.addActionListener(e -> {
-                        s.setCompleted(chk.isSelected());
-                        DataManager.getInstance().saveData();
+                        DataManager.getInstance().setSessionCompleted(s, chk.isSelected());
                         if (mainFrame != null) mainFrame.refreshAllPanels();
                         else refresh();
                     });

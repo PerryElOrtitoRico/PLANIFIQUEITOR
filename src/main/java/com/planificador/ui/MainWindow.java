@@ -32,23 +32,16 @@ public class MainWindow extends JFrame {
         tabs.addTab("Progreso", new StatsPanel(this));
         tabs.addTab("Tiempo", new StudyTimePanel(this));
         tabs.addTab("Cursada", new CoursePanel(this));
+        tabs.addTab("Historial", new HistorialPanel());
         setContentPane(tabs);
 
-        JMenuBar barra = new JMenuBar();
-        JMenu menu = new JMenu("Datos");
-        JMenuItem ejemplo = new JMenuItem("Restablecer datos de ejemplo…");
-        ejemplo.addActionListener(e -> {
-            int opt = JOptionPane.showConfirmDialog(this,
-                    "¿Restablecer los datos de ejemplo del sistema?",
-                    "Restablecer", JOptionPane.YES_NO_OPTION);
-            if (opt == JOptionPane.YES_OPTION) {
-                DataManager.getInstance().loadInitialDemoData();
-                refreshAllPanels();
-            }
-        });
-        menu.add(ejemplo);
-        barra.add(menu);
-        setJMenuBar(barra);
+        DataManager dm = DataManager.getInstance();
+        dm.setSaveErrorListener(msg -> SwingUtilities.invokeLater(() ->
+                JOptionPane.showMessageDialog(this, msg, "Error al guardar", JOptionPane.ERROR_MESSAGE)));
+        if (dm.getLoadWarning() != null) {
+            SwingUtilities.invokeLater(() ->
+                    JOptionPane.showMessageDialog(this, dm.getLoadWarning(), "Datos dañados", JOptionPane.WARNING_MESSAGE));
+        }
     }
 
     public void refreshAllPanels() {
@@ -60,13 +53,14 @@ public class MainWindow extends JFrame {
             if (comp instanceof StatsPanel) ((StatsPanel) comp).refresh();
             if (comp instanceof StudyTimePanel) ((StudyTimePanel) comp).refresh();
             if (comp instanceof CoursePanel) ((CoursePanel) comp).refresh();
+            if (comp instanceof HistorialPanel) ((HistorialPanel) comp).refresh();
         }
     }
 
     public void showCard(String cardName) {
         int i = switch (cardName) {
             case "HOY" -> 0; case "SEMANAL" -> 1; case "MATERIAS" -> 2; case "FECHAS" -> 3;
-            case "STATS" -> 4; case "TIEMPO" -> 5; case "CURSADA" -> 6; default -> -1;
+            case "STATS" -> 4; case "TIEMPO" -> 5; case "CURSADA" -> 6; case "HISTORIAL" -> 7; default -> -1;
         };
         if (i >= 0) tabs.setSelectedIndex(i);
     }

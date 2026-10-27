@@ -36,7 +36,7 @@ class PantallasTest {
         for (int i = 0; i < 9; i++) curso.getAttendance().add(new AttendanceRecord("2026-08-" + (10 + i), i != 3));
 
         List<JComponent> paneles = List.of(new TodayPanel(), new WeeklyPanel(), new SubjectsPanel(), new DatesPanel(),
-                new StatsPanel(), new StudyTimePanel(null), new CoursePanel(null), new PomodoroPanel(null),
+                new StatsPanel(), new StudyTimePanel(null), new CoursePanel(null), new PomodoroPanel(null), new HistorialPanel(),
                 new CourseRulesForm(curso.getRules()), new EvaluationForm());
         String carpeta = System.getProperty("capturas");
         for (JComponent p : paneles) {

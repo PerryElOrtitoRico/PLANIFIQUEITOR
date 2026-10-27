@@ -15,6 +15,7 @@ import com.planificador.model.CourseRules;
 import com.planificador.model.Evaluation;
 import com.planificador.model.PomodoroSettings;
 import com.planificador.model.StudyLog;
+import com.planificador.model.StudySession;
 import com.planificador.model.Subject;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -99,25 +100,28 @@ class DataManagerTest {
     }
 
     @Test
-    void sinArchivosCreaDatosDeEjemploEnLaUbicacionFija() {
+    void sinArchivosArrancaVacio() {
         Path nuevo = tmp.resolve("a/b/planificador_datos.json");
 
         DataManager dm = new DataManager(nuevo, List.of(tmp.resolve("no-existe.json")));
 
-        assertFalse(dm.getSubjects().isEmpty());
-        assertTrue(Files.exists(nuevo));
+        assertTrue(dm.getSubjects().isEmpty());
+        assertTrue(dm.getStudySessions().isEmpty());
+        assertNull(dm.getLoadWarning());
     }
 
     @Test
     void guardaYVuelveACargarDesdeElMismoArchivo() {
         Path nuevo = tmp.resolve("datos/planificador_datos.json");
         DataManager dm = new DataManager(nuevo, List.of());
-        int antes = dm.getSubjects().size();
-        dm.removeSubject(dm.getSubjects().get(0).getId());
+        dm.addSubject(new Subject("s1", "Física", "#000000", "", ""));
+        dm.addSubject(new Subject("s2", "Química", "#000000", "", ""));
+        dm.removeSubject("s1");
 
         DataManager recargado = new DataManager(nuevo, List.of());
 
-        assertEquals(antes - 1, recargado.getSubjects().size());
+        assertEquals(1, recargado.getSubjects().size());
+        assertEquals("Química", recargado.getSubjects().get(0).getName());
     }
 
     @Test
@@ -126,7 +130,9 @@ class DataManagerTest {
         Files.createDirectories(nuevo.getParent());
         Files.writeString(nuevo, "{ esto no es json válido", StandardCharsets.UTF_8);
 
-        new DataManager(nuevo, List.of());
+        DataManager dm = new DataManager(nuevo, List.of());
+        assertNotNull(dm.getLoadWarning(), "debe avisar que el archivo estaba dañado");
+        assertTrue(dm.getSubjects().isEmpty());
 
         try (var archivos = Files.list(nuevo.getParent())) {
             List<Path> respaldos = archivos.filter(p -> p.getFileName().toString().contains(".danado-")).toList();
@@ -147,6 +153,7 @@ class DataManagerTest {
     @Test
     void guardaYRecargaLoNuevo() {
         Path archivo = tmp.resolve("nuevo/planificador_datos.json"); DataManager dm = new DataManager(archivo, List.of());
+        dm.addSubject(new Subject("s1", "Física", "#000000", "", ""));
         dm.addStudyLog(new StudyLog("l1", "s1", null, null, "2026-10-25", "10:00", 25));
         dm.setPomodoroSettings(new PomodoroSettings(50, 10, 20, 3));
         Subject s = dm.getSubjects().get(0); s.getOrCreateCourse().getEvaluations().add(new Evaluation("e1", Evaluation.PARCIAL, 1, false, 7.5, null)); dm.saveData();
@@ -154,5 +161,38 @@ class DataManagerTest {
         assertEquals(1, otra.getStudyLogs().size());
         assertEquals(50, otra.getPomodoroSettings().getWorkMinutes());
         assertEquals(7.5, otra.getSubjects().get(0).getCourse().getEvaluations().get(0).getGrade(), 1e-9);
+    }
+
+    @Test
+    void marcarUnaSesionDeLaGuiaLaDejaEnElHistorial() {
+        Path archivo = tmp.resolve("h/planificador_datos.json");
+        DataManager dm = new DataManager(archivo, List.of());
+        StudySession ss = new StudySession("x1", "lunes", "s1", "Integrales", 60, false);
+        dm.addStudySession(ss);
+
+        dm.setSessionCompleted(ss, true);
+        assertEquals(1, dm.getStudyLogs().size());
+        assertTrue(dm.getStudyLogs().get(0).isFromGuide());
+        assertEquals(60, dm.getStudyLogs().get(0).getMinutes());
+
+        dm.setSessionCompleted(ss, true); // no se duplica el mismo día
+        assertEquals(1, dm.getStudyLogs().size());
+
+        dm.setSessionCompleted(ss, false);
+        assertTrue(dm.getStudyLogs().isEmpty());
+    }
+
+    @Test
+    void elHechoDeLaGuiaValeSoloEnLaSemanaEnQueSeMarco() {
+        StudySession ss = new StudySession("x1", "lunes", "s1", "Integrales", 60, false);
+        ss.setCompleted(true);
+        assertTrue(ss.isCompleted());
+        // simula una marca de la semana pasada
+        try {
+            var f = StudySession.class.getDeclaredField("completedWeek");
+            f.setAccessible(true);
+            f.set(ss, java.time.LocalDate.now().minusWeeks(1).toString());
+        } catch (ReflectiveOperationException e) { fail(e); }
+        assertFalse(ss.isCompleted());
     }
 }

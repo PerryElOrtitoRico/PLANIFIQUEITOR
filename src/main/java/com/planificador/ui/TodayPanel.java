@@ -117,8 +117,7 @@ public class TodayPanel extends JPanel {
                 chk.setSelected(session.isCompleted());
                 chk.setOpaque(false);
                 chk.addActionListener(e -> {
-                    session.setCompleted(chk.isSelected());
-                    DataManager.getInstance().saveData();
+                    DataManager.getInstance().setSessionCompleted(session, chk.isSelected());
                     if (mainFrame != null) mainFrame.refreshAllPanels();
                     else refresh();
                 });

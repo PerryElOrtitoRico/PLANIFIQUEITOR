@@ -28,6 +28,8 @@ public class DataManager {
     private List<ImportantDate> importantDates = new ArrayList<>();
     private List<StudyLog> studyLogs = new ArrayList<>();
     private PomodoroSettings pomodoroSettings = new PomodoroSettings();
+    private String loadWarning;                      // no null si el archivo no se pudo leer
+    private java.util.function.Consumer<String> saveErrorListener;
 
     /**
      * @param dataFile    archivo donde se guardan y leen los datos
@@ -64,6 +66,12 @@ public class DataManager {
     }
 
     public Path getDataFile() { return dataFile; }
+
+    /** Aviso para mostrar al usuario si el archivo de datos estaba dañado; null si se leyó bien. */
+    public String getLoadWarning() { return loadWarning; }
+
+    /** Quién se entera cuando no se puede guardar (la interfaz muestra un diálogo). */
+    public void setSaveErrorListener(java.util.function.Consumer<String> listener) { this.saveErrorListener = listener; }
 
     private void migrateLegacyFile(List<Path> legacyFiles) {
         if (Files.exists(dataFile)) {
@@ -135,7 +143,24 @@ public class DataManager {
         subjects.removeIf(s -> s.getId().equals(subjectId));
         studySessions.removeIf(sess -> sess.getSubjectId().equals(subjectId));
         importantDates.removeIf(d -> d.getSubjectId().equals(subjectId));
-        studyLogs.removeIf(l -> subjectId.equals(l.getSubjectId()));
+        saveData();
+    }
+
+    /**
+     * Marca o desmarca una sesión de la guía. Al marcarla queda en el historial (calendario) con la fecha de hoy;
+     * al desmarcarla, se quita la entrada de hoy.
+     */
+    public void setSessionCompleted(StudySession session, boolean done) {
+        session.setCompleted(done);
+        LocalDate today = LocalDate.now();
+        String logId = "guia_" + session.getId() + "_" + today;
+        studyLogs.removeIf(l -> logId.equals(l.getId()));
+        if (done) {
+            StudyLog log = new StudyLog(logId, session.getSubjectId(), null, session.getTopicDescription(),
+                    today.toString(), null, session.getDurationMinutes());
+            log.setSource("guia");
+            studyLogs.add(log);
+        }
         saveData();
     }
 
@@ -169,16 +194,22 @@ public class DataManager {
                 AppData data = new AppData(subjects, studySessions, importantDates, studyLogs, pomodoroSettings);
                 gson.toJson(data, writer);
             }
-            Files.move(tmp, dataFile, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+            try {
+                Files.move(tmp, dataFile, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+            } catch (java.nio.file.AtomicMoveNotSupportedException e) {
+                Files.move(tmp, dataFile, StandardCopyOption.REPLACE_EXISTING);
+            }
         } catch (IOException e) {
             e.printStackTrace();
+            if (saveErrorListener != null) {
+                saveErrorListener.accept("No se pudieron guardar los datos en " + dataFile + ":\n" + e.getMessage());
+            }
         }
     }
 
     public void loadData() {
         if (!Files.exists(dataFile)) {
-            loadInitialDemoData();
-            saveData();
+            clearAll(); // primera vez: arranca vacío
             return;
         }
 
@@ -188,13 +219,24 @@ public class DataManager {
             if (data != null) {
                 applyLoaded(data);
             } else {
-                loadInitialDemoData();
+                clearAll();
             }
         } catch (Exception e) {
             e.printStackTrace();
-            backupDamagedFile();
-            loadInitialDemoData();
+            Path backup = backupDamagedFile();
+            clearAll();
+            loadWarning = "No se pudo leer el archivo de datos (" + dataFile + ").\n"
+                    + (backup != null ? "Se guardó una copia en:\n" + backup + "\n" : "No se pudo guardar una copia.\n")
+                    + "El programa arranca vacío; al guardar algo nuevo se reemplaza el archivo.";
         }
+    }
+
+    private void clearAll() {
+        subjects = new ArrayList<>();
+        studySessions = new ArrayList<>();
+        importantDates = new ArrayList<>();
+        studyLogs = new ArrayList<>();
+        pomodoroSettings = new PomodoroSettings();
     }
 
     /** Copia a los campos lo leído del JSON. Un campo que falta (JSON viejo) queda vacío o con su valor por defecto. */
@@ -207,47 +249,17 @@ public class DataManager {
     }
 
     /** Guarda una copia del archivo ilegible antes de que el próximo guardado lo pise. */
-    private void backupDamagedFile() {
+    private Path backupDamagedFile() {
         String stamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss"));
         Path backup = dataFile.resolveSibling(FILE_NAME + ".danado-" + stamp);
         try {
             Files.copy(dataFile, backup, StandardCopyOption.REPLACE_EXISTING);
             System.err.println("El archivo de datos no se pudo leer; copia guardada en " + backup);
+            return backup;
         } catch (IOException e) {
             e.printStackTrace();
+            return null;
         }
-    }
-
-    public void loadInitialDemoData() {
-        subjects.clear();
-        studySessions.clear();
-        importantDates.clear();
-        studyLogs.clear();
-        pomodoroSettings = new PomodoroSettings();
-
-        Subject math = new Subject("s1", "Análisis Matemático II", "#4f46e5", "Ing. Pérez", "Lun y Mié 18:00 hs");
-        Unit u1 = new Unit("u1", 1, "Derivadas Parciales y Integrales Múltiples");
-        u1.addTopic(new Topic("t1", "Límites dobles y continuidad", true));
-        u1.addTopic(new Topic("t2", "Derivadas direccionales y Gradiente", true));
-        u1.addTopic(new Topic("t3", "Integrales dobles sobre regiones generales", false));
-        math.getUnits().add(u1);
-
-        Subject algo = new Subject("s2", "Algoritmos y Estructuras de Datos", "#0284c7", "Dra. Gómez", "Mar y Jue 14:00 hs");
-        Unit u2 = new Unit("u2", 1, "Estructuras de Datos Avanzadas");
-        u2.addTopic(new Topic("t4", "Árboles AVL y Árboles B", true));
-        u2.addTopic(new Topic("t5", "Grafos: Dijkstra y BFS/DFS", false));
-        algo.getUnits().add(u2);
-
-        subjects.add(math);
-        subjects.add(algo);
-
-        studySessions.add(new StudySession("ss1", "lunes", "s1", "Repasar Integrales Dobles", 60, false));
-        studySessions.add(new StudySession("ss2", "martes", "s2", "Práctica de Árboles AVL en Java", 45, true));
-        studySessions.add(new StudySession("ss3", "miercoles", "s1", "Ejercicios de Gradientes", 90, false));
-
-        LocalDate today = LocalDate.now();
-        importantDates.add(new ImportantDate("d1", "Primer Parcial Análisis II", "s1", today.plusDays(5).toString(), "parcial", "Capítulos 1 al 4"));
-        importantDates.add(new ImportantDate("d2", "Entrega TP Grafos", "s2", today.plusDays(12).toString(), "tp", "Subir en GitHub"));
     }
 
     private static class AppData {

@@ -37,6 +37,9 @@ public class PomodoroPanel extends JPanel {
     private List<Topic> topics = new ArrayList<>();   // temas de la materia elegida, en el orden del combo (índice 0 = sin tema)
     PomodoroEngine engine;
     boolean running = false;
+    private Subject cycleSubject;                 // materia y tema con que arrancó el ciclo de estudio en curso
+    private Topic cycleTopic;
+    private long lastTickNanos = System.nanoTime();
 
     public PomodoroPanel(Runnable onSaved) {
         this.onSaved = onSaved;
@@ -110,8 +113,14 @@ public class PomodoroPanel extends JPanel {
 
     /** Un segundo del reloj (lo llama el Timer). */
     void onTick() {
-        PomodoroPhase finished = engine.tick();
+        // Se cuenta contra el reloj del sistema: si el equipo se suspendió o la interfaz se trabó, no se pierde tiempo.
+        long now = System.nanoTime();
+        int n = (int) Math.max(1, Math.min(3600, Math.round((now - lastTickNanos) / 1e9)));
+        lastTickNanos += n * 1_000_000_000L;
+        PomodoroPhase finished = null;
+        for (int i = 0; i < n && finished == null; i++) finished = engine.tick();
         if (finished == PomodoroPhase.WORK) saveCycle();
+        if (finished != null) cycleSubject = null;
         updateLabels();
         if (finished != null) {
             timer.stop();
@@ -123,11 +132,11 @@ public class PomodoroPanel extends JPanel {
 
     /** Guarda el ciclo de estudio que acaba de terminar como StudyLog. */
     void saveCycle() {
-        Subject s = selectedSubject();
+        Subject s = cycleSubject != null ? cycleSubject : selectedSubject();
         if (s == null) return;
-        Topic t = selectedTopic();
+        Topic t = cycleSubject != null ? cycleTopic : selectedTopic();
         int minutes = engine.minutesFor(PomodoroPhase.WORK);
-        StudyLog log = StudyLogFactory.fromWorkCycle("pl_" + System.currentTimeMillis(), s.getId(), t != null ? t.getId() : null, t != null ? t.getTitle() : null, java.time.LocalDateTime.now(), minutes);
+        StudyLog log = StudyLogFactory.fromWorkCycle("pl_" + java.util.UUID.randomUUID(), s.getId(), t != null ? t.getId() : null, t != null ? t.getTitle() : null, java.time.LocalDateTime.now(), minutes);
         DataManager.getInstance().addStudyLog(log);
         if (onSaved != null) onSaved.run();
     }
@@ -150,6 +159,13 @@ public class PomodoroPanel extends JPanel {
                 JOptionPane.showMessageDialog(this, "Primero agregá una materia.", "Pomodoro", JOptionPane.WARNING_MESSAGE);
                 return;
             }
+            if (engine.phase() == PomodoroPhase.WORK && cycleSubject == null) {
+                cycleSubject = selectedSubject();
+                cycleTopic = selectedTopic();
+            }
+            subjectCombo.setEnabled(cycleSubject == null);
+            topicCombo.setEnabled(cycleSubject == null);
+            lastTickNanos = System.nanoTime();
             timer.start();
             running = true;
             startButton.setText("⏸ Pausar");
@@ -159,6 +175,9 @@ public class PomodoroPanel extends JPanel {
     /** Termina la fase actual sin guardarla. */
     void skipPhase() {
         engine.skip();
+        cycleSubject = null;
+        subjectCombo.setEnabled(true);
+        topicCombo.setEnabled(true);
         updateLabels();
     }
 
