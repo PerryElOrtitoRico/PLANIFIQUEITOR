@@ -30,32 +30,23 @@ public class TodayPanel extends JPanel {
 
     private void initUI() {
         JPanel topHeader = new JPanel(new BorderLayout());
-        headerLabel = new JLabel("🎯 Plan de Estudio de Hoy");
+        headerLabel = new JLabel("Plan de Estudio de Hoy");
         headerLabel.setFont(new Font("SansSerif", Font.BOLD, 22));
 
         JPanel rightBtns = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
 
-        JButton addTodayBtn = new JButton("＋ Agregar Estudio Hoy");
-        addTodayBtn.setFont(new Font("SansSerif", Font.BOLD, 13));
-        addTodayBtn.setBackground(new Color(16, 185, 129));
-        addTodayBtn.setForeground(Color.WHITE);
+        JButton addTodayBtn = new JButton("Agregar Estudio Hoy");
         addTodayBtn.setFocusPainted(false);
         addTodayBtn.addActionListener(e -> showAddTodaySessionDialog());
 
-        JButton timerBtn = new JButton("⏱️ Cronómetro");
-        timerBtn.setFont(new Font("SansSerif", Font.BOLD, 13));
-        timerBtn.setBackground(new Color(79, 70, 229));
-        timerBtn.setForeground(Color.WHITE);
+        JButton timerBtn = new JButton("⏱Cronómetro");
         timerBtn.setFocusPainted(false);
         timerBtn.addActionListener(e -> {
             TimerDialog dialog = new TimerDialog(mainFrame, 25);
             dialog.setVisible(true);
         });
 
-        JButton pomodoroBtn = new JButton("🍅 Pomodoro");
-        pomodoroBtn.setFont(new Font("SansSerif", Font.BOLD, 13));
-        pomodoroBtn.setBackground(new Color(225, 29, 72));
-        pomodoroBtn.setForeground(Color.WHITE);
+        JButton pomodoroBtn = new JButton("Pomodoro");
         pomodoroBtn.setFocusPainted(false);
         pomodoroBtn.addActionListener(e -> new PomodoroDialog(mainFrame).setVisible(true));
 
@@ -108,7 +99,7 @@ public class TodayPanel extends JPanel {
 
         if (todaySessions.isEmpty()) {
             JPanel emptyBox = new JPanel();
-            emptyBox.add(new JLabel("🎉 ¡No tienes sesiones programadas para hoy (" + todayName + ")! Presiona '＋ Agregar Estudio Hoy' para agregar una."));
+            emptyBox.add(new JLabel("¡No tienes sesiones programadas para hoy (" + todayName + ")! Presiona 'Agregar Estudio Hoy' para agregar una."));
             sessionsListPanel.add(emptyBox);
         } else {
             for (StudySession session : todaySessions) {
@@ -117,9 +108,8 @@ public class TodayPanel extends JPanel {
 
                 JPanel card = new JPanel(new BorderLayout(10, 10));
                 card.setMaximumSize(new Dimension(Integer.MAX_VALUE, 70));
-                card.setBackground(Color.WHITE);
                 card.setBorder(BorderFactory.createCompoundBorder(
-                        BorderFactory.createLineBorder(session.isCompleted() ? new Color(16, 185, 129) : new Color(226, 232, 240), 1),
+                        BorderFactory.createLineBorder(session.isCompleted() ? new Color(0x43A047) : UIManager.getColor("Component.borderColor"), 1),
                         BorderFactory.createEmptyBorder(10, 15, 10, 15)
                 ));
 

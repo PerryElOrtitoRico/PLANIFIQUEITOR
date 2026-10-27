@@ -35,7 +35,7 @@ public class CoursePanel extends JPanel {
         setLayout(new BorderLayout(15, 15));
         setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
 
-        JLabel title = new JLabel("🎓 Seguimiento de Cursada");
+        JLabel title = new JLabel("Seguimiento de Cursada");
         title.setFont(new Font("SansSerif", Font.BOLD, 22));
         add(title, BorderLayout.NORTH);
 
@@ -51,17 +51,17 @@ public class CoursePanel extends JPanel {
         status.add(conditionLabel, BorderLayout.NORTH);
         status.add(statusPanel, BorderLayout.CENTER);
 
-        JButton rulesBtn = new JButton("⚙ Reglas de cursada");
+        JButton rulesBtn = new JButton("Reglas de cursada");
         rulesBtn.addActionListener(e -> editRules());
-        JButton addGradeBtn = new JButton("＋ Nota");
+        JButton addGradeBtn = new JButton("Nota");
         addGradeBtn.addActionListener(e -> addEvaluation());
-        JButton delGradeBtn = new JButton("🗑 Borrar nota");
+        JButton delGradeBtn = new JButton("Borrar nota");
         delGradeBtn.addActionListener(e -> deleteEvaluation());
-        JButton presentBtn = new JButton("✔ Presente");
+        JButton presentBtn = new JButton("Presente");
         presentBtn.addActionListener(e -> addAttendance(true));
-        JButton absentBtn = new JButton("✘ Ausente");
+        JButton absentBtn = new JButton("Ausente");
         absentBtn.addActionListener(e -> addAttendance(false));
-        JButton delAttBtn = new JButton("🗑 Borrar");
+        JButton delAttBtn = new JButton("Borrar");
         delAttBtn.addActionListener(e -> deleteAttendance());
 
         JPanel gradesBox = new JPanel(new BorderLayout(0, 4));
@@ -175,10 +175,10 @@ public class CoursePanel extends JPanel {
 
     static Color conditionColor(CourseCondition c) {
         return switch (c) {
-            case PROMOCION -> new Color(16, 185, 129);
-            case REGULAR -> new Color(2, 132, 199);
-            case LIBRE -> new Color(225, 29, 72);
-            case EN_CURSO -> new Color(217, 119, 6);
+            case PROMOCION -> new Color(0x43A047);
+            case REGULAR -> new Color(0x1E5BD8);
+            case LIBRE -> new Color(0xE53935);
+            case EN_CURSO -> new Color(0xF9A825);
         };
     }
 

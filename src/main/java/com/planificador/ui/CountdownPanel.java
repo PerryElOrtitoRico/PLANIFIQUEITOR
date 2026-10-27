@@ -14,8 +14,8 @@ import java.util.List;
 public class CountdownPanel extends JPanel {
 
     static final int DIAS = 30;
-    static final Color URGENTE = new Color(225, 29, 72);   // 7 días o menos
-    static final Color NORMAL = new Color(51, 65, 85);
+    static final Color URGENTE = new Color(0xE53935);   // 7 días o menos
+    static final Color NORMAL = new Color(0x222222);
 
     public CountdownPanel() {
         setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
@@ -45,7 +45,6 @@ public class CountdownPanel extends JPanel {
                 JLabel l = new JLabel("⏳ " + Countdown.text(d, nombre, today));
                 Long n = Countdown.daysUntil(d.getDate(), today);
                 l.setForeground(n != null && n <= 7 ? URGENTE : NORMAL);
-                l.setFont(new Font("SansSerif", Font.BOLD, 13));
                 add(l);
             }
         }

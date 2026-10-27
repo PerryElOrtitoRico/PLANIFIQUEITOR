@@ -26,13 +26,10 @@ public class SubjectsPanel extends JPanel {
 
     private void initUI() {
         JPanel header = new JPanel(new BorderLayout());
-        JLabel title = new JLabel("📚 Materias, Unidades y Temas");
+        JLabel title = new JLabel("Materias, Unidades y Temas");
         title.setFont(new Font("SansSerif", Font.BOLD, 22));
 
-        JButton addSubjectBtn = new JButton("＋ Nueva Materia");
-        addSubjectBtn.setFont(new Font("SansSerif", Font.BOLD, 12));
-        addSubjectBtn.setBackground(new Color(79, 70, 229));
-        addSubjectBtn.setForeground(Color.WHITE);
+        JButton addSubjectBtn = new JButton("Nueva Materia");
         addSubjectBtn.setFocusPainted(false);
         addSubjectBtn.addActionListener(e -> showAddSubjectDialog());
 
@@ -56,17 +53,16 @@ public class SubjectsPanel extends JPanel {
 
         if (list.isEmpty()) {
             JPanel emptyPanel = new JPanel();
-            emptyPanel.add(new JLabel("<html><font color='#64748b'>No hay materias registradas. ¡Haz clic en '<b>＋ Nueva Materia</b>' para agregar la primera!</font></html>"));
+            emptyPanel.add(new JLabel("<html><font color='gray'>No hay materias registradas. ¡Haz clic en '<b>Nueva Materia</b>' para agregar la primera!</font></html>"));
             subjectsList.add(emptyPanel);
         } else {
             for (Subject subject : list) {
                 JPanel card = new JPanel(new BorderLayout(10, 10));
                 card.setMaximumSize(new Dimension(Integer.MAX_VALUE, 220));
                 card.setBorder(BorderFactory.createCompoundBorder(
-                        BorderFactory.createLineBorder(new Color(226, 232, 240), 1),
+                        BorderFactory.createLineBorder(UIManager.getColor("Component.borderColor"), 1),
                         BorderFactory.createEmptyBorder(12, 15, 12, 15)
                 ));
-                card.setBackground(Color.WHITE);
 
                 // Top Info
                 JPanel topInfo = new JPanel(new BorderLayout());
@@ -74,7 +70,7 @@ public class SubjectsPanel extends JPanel {
 
                 double pct = subject.getProgressPercentage();
                 JLabel nameLbl = new JLabel("<html><b><font size='4'>" + subject.getName() + "</font></b> &nbsp;<font color='#4f46e5'>(" + String.format("%.0f", pct) + "% completado)</font></html>");
-                JLabel subDetails = new JLabel("<html><font color='#64748b'>Profesor: " + (subject.getProfessor().isEmpty() ? "Sin asignar" : subject.getProfessor()) + " | Horario: " + (subject.getSchedule().isEmpty() ? "Sin asignar" : subject.getSchedule()) + "</font></html>");
+                JLabel subDetails = new JLabel("<html><font color='gray'>Profesor: " + (subject.getProfessor().isEmpty() ? "Sin asignar" : subject.getProfessor()) + " | Horario: " + (subject.getSchedule().isEmpty() ? "Sin asignar" : subject.getSchedule()) + "</font></html>");
 
                 JPanel textContainer = new JPanel();
                 textContainer.setLayout(new BoxLayout(textContainer, BoxLayout.Y_AXIS));
@@ -82,8 +78,7 @@ public class SubjectsPanel extends JPanel {
                 textContainer.add(nameLbl);
                 textContainer.add(subDetails);
 
-                JButton deleteBtn = new JButton("🗑️ Eliminar Materia");
-                deleteBtn.setForeground(new Color(220, 38, 38));
+                JButton deleteBtn = new JButton("Eliminar Materia");
                 deleteBtn.addActionListener(e -> {
                     int confirm = JOptionPane.showConfirmDialog(this,
                             "¿Eliminar la materia '" + subject.getName() + "'?\n\n" +
@@ -114,13 +109,11 @@ public class SubjectsPanel extends JPanel {
                 } else {
                     for (Unit u : subject.getUnits()) {
                         JLabel uLabel = new JLabel("Unidad " + u.getNumber() + ": " + u.getTitle());
-                        uLabel.setFont(new Font("SansSerif", Font.BOLD, 12));
                         unitsContainer.add(uLabel);
 
                         for (Topic topic : u.getTopics()) {
                             JCheckBox topicChk = new JCheckBox(topic.getTitle());
                             topicChk.setSelected(topic.isCompleted());
-                            topicChk.setFont(new Font("SansSerif", Font.PLAIN, 12));
                             topicChk.setOpaque(false);
                             topicChk.addActionListener(ev -> {
                                 topic.setCompleted(topicChk.isSelected());

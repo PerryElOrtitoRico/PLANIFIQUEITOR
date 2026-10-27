@@ -25,13 +25,10 @@ public class DatesPanel extends JPanel {
 
     private void initUI() {
         JPanel header = new JPanel(new BorderLayout());
-        JLabel title = new JLabel("⏰ Fechas Importantes (Parciales, TPs y Finales)");
+        JLabel title = new JLabel("Fechas Importantes (Parciales, TPs y Finales)");
         title.setFont(new Font("SansSerif", Font.BOLD, 20));
 
-        JButton addBtn = new JButton("＋ Agregar Fecha");
-        addBtn.setFont(new Font("SansSerif", Font.BOLD, 12));
-        addBtn.setBackground(new Color(79, 70, 229));
-        addBtn.setForeground(Color.WHITE);
+        JButton addBtn = new JButton("Agregar Fecha");
         addBtn.setFocusPainted(false);
         addBtn.addActionListener(e -> showAddDialog());
 
@@ -55,7 +52,7 @@ public class DatesPanel extends JPanel {
 
         if (list.isEmpty()) {
             JPanel emptyPanel = new JPanel();
-            emptyPanel.add(new JLabel("<html><font color='#64748b'>No hay fechas importantes registradas.</font></html>"));
+            emptyPanel.add(new JLabel("<html><font color='gray'>No hay fechas importantes registradas.</font></html>"));
             datesList.add(emptyPanel);
         } else {
             for (ImportantDate d : list) {
@@ -64,9 +61,8 @@ public class DatesPanel extends JPanel {
 
                 JPanel card = new JPanel(new BorderLayout());
                 card.setMaximumSize(new Dimension(Integer.MAX_VALUE, 65));
-                card.setBackground(Color.WHITE);
                 card.setBorder(BorderFactory.createCompoundBorder(
-                        BorderFactory.createLineBorder(new Color(226, 232, 240)),
+                        BorderFactory.createLineBorder(UIManager.getColor("Component.borderColor")),
                         BorderFactory.createEmptyBorder(10, 12, 10, 12)
                 ));
 
@@ -76,7 +72,7 @@ public class DatesPanel extends JPanel {
                 JLabel lbl = new JLabel("<html><b>" + d.getTitle() + "</b> (" + subName + ") - Fecha: " + d.getDate() + " | <font color='#e11d48'><b>" + daysText + "</b></font></html>");
                 card.add(lbl, BorderLayout.CENTER);
 
-                JButton delBtn = new JButton("🗑️ Eliminar");
+                JButton delBtn = new JButton("Eliminar");
                 delBtn.addActionListener(e -> {
                     DataManager.getInstance().removeImportantDate(d.getId());
                     if (mainFrame != null) {

@@ -11,7 +11,7 @@ public class TimerDialog extends JDialog {
     private boolean isRunning = false;
 
     public TimerDialog(Frame owner, int initialMinutes) {
-        super(owner, "⏱️ Sesión de Estudio (Cronómetro)", true);
+        super(owner, "⏱Sesión de Estudio (Cronómetro)", true);
         this.secondsRemaining = initialMinutes * 60;
 
         setSize(380, 240);
@@ -26,7 +26,6 @@ public class TimerDialog extends JDialog {
 
         JPanel btnPanel = new JPanel(new FlowLayout());
         startPauseBtn = new JButton("▶ Iniciar");
-        startPauseBtn.setFont(new Font("SansSerif", Font.BOLD, 14));
         startPauseBtn.addActionListener(e -> toggleTimer());
 
         JButton closeBtn = new JButton("Cerrar");
@@ -45,7 +44,7 @@ public class TimerDialog extends JDialog {
                 timerLabel.setText(formatTime(secondsRemaining));
             } else {
                 timer.stop();
-                JOptionPane.showMessageDialog(this, "🎉 ¡Tiempo cumplido! Excelente sesión de estudio.");
+                JOptionPane.showMessageDialog(this, "¡Tiempo cumplido! Excelente sesión de estudio.");
                 dispose();
             }
         });
@@ -58,7 +57,7 @@ public class TimerDialog extends JDialog {
             isRunning = false;
         } else {
             timer.start();
-            startPauseBtn.setText("⏸️ Pausar");
+            startPauseBtn.setText("⏸Pausar");
             isRunning = true;
         }
     }

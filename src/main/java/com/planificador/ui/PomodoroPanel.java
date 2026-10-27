@@ -30,7 +30,7 @@ public class PomodoroPanel extends JPanel {
     final JLabel cyclesLabel = new JLabel("Ciclos completos: 0", SwingConstants.CENTER);
     final JButton startButton = new JButton("▶ Iniciar");
     final JButton skipButton = new JButton("⏭ Saltear");
-    final JButton settingsButton = new JButton("⚙ Ajustes");
+    final JButton settingsButton = new JButton("Ajustes");
     private final Timer timer = new Timer(1000, e -> onTick());
 
     private List<Subject> subjects = new ArrayList<>();
@@ -59,7 +59,6 @@ public class PomodoroPanel extends JPanel {
         add(center, BorderLayout.CENTER);
 
         JPanel buttons = new JPanel(new FlowLayout());
-        startButton.setFont(new Font("SansSerif", Font.BOLD, 14));
         buttons.add(startButton);
         buttons.add(skipButton);
         buttons.add(settingsButton);

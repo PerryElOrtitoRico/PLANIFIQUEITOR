@@ -26,7 +26,7 @@ public class StatsPanel extends JPanel {
     }
 
     private void initUI() {
-        JLabel title = new JLabel("📊 Progreso General y Estadísticas de Estudio");
+        JLabel title = new JLabel("Progreso General y Estadísticas de Estudio");
         title.setFont(new Font("SansSerif", Font.BOLD, 22));
         add(title, BorderLayout.NORTH);
 
@@ -67,10 +67,10 @@ public class StatsPanel extends JPanel {
         }
         int overallSyllabusPercent = totalTopicsCount > 0 ? (completedTopicsCount * 100 / totalTopicsCount) : 0;
 
-        metricsGrid.add(createMetricCard("Horas Planificadas", String.format("%.1f hrs", totalMinutesPlanned / 60.0), new Color(79, 70, 229)));
-        metricsGrid.add(createMetricCard("Horas Completadas", String.format("%.1f hrs", totalMinutesCompleted / 60.0), new Color(16, 185, 129)));
-        metricsGrid.add(createMetricCard("Temas Dominados", completedTopicsCount + " / " + totalTopicsCount + " (" + overallSyllabusPercent + "%)", new Color(147, 51, 234)));
-        metricsGrid.add(createMetricCard("Materias Activas", String.valueOf(subjects.size()), new Color(217, 119, 6)));
+        metricsGrid.add(createMetricCard("Horas Planificadas", String.format("%.1f hrs", totalMinutesPlanned / 60.0)));
+        metricsGrid.add(createMetricCard("Horas Completadas", String.format("%.1f hrs", totalMinutesCompleted / 60.0)));
+        metricsGrid.add(createMetricCard("Temas Dominados", completedTopicsCount + " / " + totalTopicsCount + " (" + overallSyllabusPercent + "%)"));
+        metricsGrid.add(createMetricCard("Materias Activas", String.valueOf(subjects.size())));
 
         statsContent.add(metricsGrid);
         statsContent.add(Box.createRigidArea(new Dimension(0, 20)));
@@ -82,15 +82,14 @@ public class StatsPanel extends JPanel {
 
         if (subjects.isEmpty()) {
             JPanel emptyCard = new JPanel();
-            emptyCard.add(new JLabel("<html><font color='#64748b'>No hay materias registradas actualmente. Al agregar o borrar materias, esta lista se actualiza automáticamente.</font></html>"));
+            emptyCard.add(new JLabel("<html><font color='gray'>No hay materias registradas actualmente. Al agregar o borrar materias, esta lista se actualiza automáticamente.</font></html>"));
             statsContent.add(emptyCard);
         } else {
             for (Subject sub : subjects) {
                 JPanel card = new JPanel(new BorderLayout(10, 10));
                 card.setMaximumSize(new Dimension(Integer.MAX_VALUE, 90));
-                card.setBackground(Color.WHITE);
                 card.setBorder(BorderFactory.createCompoundBorder(
-                        BorderFactory.createLineBorder(new Color(226, 232, 240), 1),
+                        BorderFactory.createLineBorder(UIManager.getColor("Component.borderColor"), 1),
                         BorderFactory.createEmptyBorder(12, 15, 12, 15)
                 ));
 
@@ -110,15 +109,13 @@ public class StatsPanel extends JPanel {
                         .mapToInt(StudySession::getDurationMinutes)
                         .sum();
 
-                JLabel subHeader = new JLabel("<html><b><font size='3'>" + sub.getName() + "</font></b> &nbsp;<font color='#64748b'>Profesor: " + (sub.getProfessor().isEmpty() ? "Sin asignar" : sub.getProfessor()) + " | " + subPlannedMins + " min/semana</font></html>");
+                JLabel subHeader = new JLabel("<html><b><font size='3'>" + sub.getName() + "</font></b> &nbsp;<font color='gray'>Profesor: " + (sub.getProfessor().isEmpty() ? "Sin asignar" : sub.getProfessor()) + " | " + subPlannedMins + " min/semana</font></html>");
 
                 JProgressBar bar = new JProgressBar(0, 100);
                 bar.setValue(progress);
                 bar.setStringPainted(true);
-                bar.setForeground(new Color(79, 70, 229));
 
                 JLabel subInfo = new JLabel("Temas: " + subCompletedTopicsCount + "/" + subTopicsCount + " (" + progress + "%)");
-                subInfo.setFont(new Font("SansSerif", Font.PLAIN, 12));
 
                 JPanel centerContainer = new JPanel(new BorderLayout(5, 5));
                 centerContainer.setOpaque(false);
@@ -137,22 +134,20 @@ public class StatsPanel extends JPanel {
         statsContent.repaint();
     }
 
-    private JPanel createMetricCard(String title, String value, Color accentColor) {
+    private JPanel createMetricCard(String title, String value) {
         JPanel p = new JPanel();
         p.setLayout(new BoxLayout(p, BoxLayout.Y_AXIS));
-        p.setBackground(Color.WHITE);
         p.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(new Color(226, 232, 240), 1),
+                BorderFactory.createLineBorder(UIManager.getColor("Component.borderColor"), 1),
                 BorderFactory.createEmptyBorder(10, 12, 10, 12)
         ));
 
         JLabel tLbl = new JLabel(title);
-        tLbl.setFont(new Font("SansSerif", Font.PLAIN, 11));
-        tLbl.setForeground(new Color(100, 116, 139));
+        tLbl.setForeground(UIManager.getColor("Label.disabledForeground"));
 
         JLabel vLbl = new JLabel(value);
         vLbl.setFont(new Font("SansSerif", Font.BOLD, 18));
-        vLbl.setForeground(accentColor);
+        
 
         p.add(tLbl);
         p.add(Box.createRigidArea(new Dimension(0, 4)));

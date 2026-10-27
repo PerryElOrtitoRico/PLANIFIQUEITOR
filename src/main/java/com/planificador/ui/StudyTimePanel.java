@@ -34,13 +34,10 @@ public class StudyTimePanel extends JPanel {
         setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
 
         JPanel header = new JPanel(new BorderLayout());
-        JLabel title = new JLabel("⏳ Tiempo por Materia");
+        JLabel title = new JLabel("Tiempo por Materia");
         title.setFont(new Font("SansSerif", Font.BOLD, 22));
         header.add(title, BorderLayout.WEST);
-        JButton pomodoroBtn = new JButton("🍅 Pomodoro");
-        pomodoroBtn.setFont(new Font("SansSerif", Font.BOLD, 13));
-        pomodoroBtn.setBackground(new Color(225, 29, 72));
-        pomodoroBtn.setForeground(Color.WHITE);
+        JButton pomodoroBtn = new JButton("Pomodoro");
         pomodoroBtn.setFocusPainted(false);
         pomodoroBtn.addActionListener(e -> new PomodoroDialog(mainFrame).setVisible(true));
         header.add(pomodoroBtn, BorderLayout.EAST);
@@ -52,7 +49,6 @@ public class StudyTimePanel extends JPanel {
         prev.addActionListener(e -> { weekStart = weekStart.minusWeeks(1); refresh(); });
         next.addActionListener(e -> { weekStart = weekStart.plusWeeks(1); refresh(); });
         today.addActionListener(e -> { weekStart = StudyTimeStats.weekStart(LocalDate.now()); refresh(); });
-        weekLabel.setFont(new Font("SansSerif", Font.BOLD, 14));
         weekNav.add(prev);
         weekNav.add(weekLabel);
         weekNav.add(next);
@@ -74,7 +70,6 @@ public class StudyTimePanel extends JPanel {
     private static JComponent titled(String titulo, JTable tabla) {
         JPanel p = new JPanel(new BorderLayout(0, 5));
         JLabel l = new JLabel(titulo);
-        l.setFont(new Font("SansSerif", Font.BOLD, 13));
         p.add(l, BorderLayout.NORTH);
         tabla.setRowHeight(24);
         tabla.setFillsViewportHeight(true);
