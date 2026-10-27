@@ -155,7 +155,10 @@ public class DataManager {
         LocalDate today = LocalDate.now();
         String logId = "guia_" + session.getId() + "_" + today;
         studyLogs.removeIf(l -> logId.equals(l.getId()));
-        if (done) {
+        // Si ya se cronometró esta sesión hoy, esos minutos ya están en el historial: no se duplican.
+        String cronoPrefix = "cron_" + session.getId() + "_" + today + "_";
+        boolean cronometrada = studyLogs.stream().anyMatch(l -> l.getId().startsWith(cronoPrefix));
+        if (done && !cronometrada) {
             StudyLog log = new StudyLog(logId, session.getSubjectId(), null, session.getTopicDescription(),
                     today.toString(), null, session.getDurationMinutes());
             log.setSource("guia");

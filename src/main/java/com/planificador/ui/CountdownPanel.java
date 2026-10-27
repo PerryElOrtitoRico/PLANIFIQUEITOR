@@ -15,7 +15,7 @@ public class CountdownPanel extends JPanel {
 
     static final int DIAS = 30;
     static final Color URGENTE = new Color(0xE53935);   // 7 días o menos
-    static final Color NORMAL = new Color(0x222222);
+    static Color normal() { return UIManager.getColor("Label.foreground"); }
 
     public CountdownPanel() {
         setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
@@ -36,7 +36,7 @@ public class CountdownPanel extends JPanel {
         List<ImportantDate> proximas = Countdown.upcoming(dm.getImportantDates(), today, DIAS);
         if (proximas.isEmpty()) {
             JLabel l = new JLabel("Sin fechas importantes en los próximos " + DIAS + " días");
-            l.setForeground(NORMAL);
+            l.setForeground(normal());
             add(l);
         } else {
             for (ImportantDate d : proximas) {
@@ -44,7 +44,7 @@ public class CountdownPanel extends JPanel {
                 String nombre = s != null ? s.getName() : null;
                 JLabel l = new JLabel("⏳ " + Countdown.text(d, nombre, today));
                 Long n = Countdown.daysUntil(d.getDate(), today);
-                l.setForeground(n != null && n <= 7 ? URGENTE : NORMAL);
+                l.setForeground(n != null && n <= 7 ? URGENTE : normal());
                 add(l);
             }
         }

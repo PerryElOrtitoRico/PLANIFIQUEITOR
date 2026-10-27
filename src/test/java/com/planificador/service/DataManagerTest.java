@@ -195,4 +195,20 @@ class DataManagerTest {
         } catch (ReflectiveOperationException e) { fail(e); }
         assertFalse(ss.isCompleted());
     }
+
+    @Test
+    void siSeCronometroLaSesionNoSeDuplicaAlMarcarla() {
+        DataManager dm = new DataManager(tmp.resolve("c/planificador_datos.json"), List.of());
+        StudySession ss = new StudySession("x1", "lunes", "s1", "Integrales", 60, false);
+        dm.addStudySession(ss);
+        StudyLog crono = new StudyLog("cron_x1_" + java.time.LocalDate.now() + "_a", "s1", null, "Integrales",
+                java.time.LocalDate.now().toString(), "10:00", 30);
+        crono.setSource("cronometro");
+        dm.addStudyLog(crono);
+
+        dm.setSessionCompleted(ss, true);
+
+        assertEquals(1, dm.getStudyLogs().size());
+        assertEquals(30, dm.getStudyLogs().get(0).getMinutes());
+    }
 }

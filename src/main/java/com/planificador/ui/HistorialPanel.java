@@ -104,14 +104,19 @@ public class HistorialPanel extends JPanel {
             if (!elegido.toString().equals(l.getDate())) continue;
             Subject s = DataManager.getInstance().getSubjectById(l.getSubjectId());
             m.addRow(new Object[]{l.getStartTime() == null ? "—" : l.getStartTime(),
-                    s != null ? s.getName() : "(materia eliminada)",
+                    s != null ? s.getName() : (l.getSubjectId() == null ? "General" : "(materia eliminada)"),
                     l.getTopicTitle() == null ? "" : l.getTopicTitle(),
-                    l.getMinutes(), l.isFromGuide() ? "Guía semanal" : "Pomodoro"});
+                    l.getMinutes(), origen(l)});
             total += l.getMinutes();
         }
         detalle.setModel(m);
         detalleTitulo.setText(elegido.getDayOfMonth() + "/" + elegido.getMonthValue() + "/" + elegido.getYear()
                 + (total > 0 ? " — total " + formatear(total) : " — no hay estudio registrado"));
+    }
+
+    private static String origen(StudyLog l) {
+        if (l.isFromGuide()) return "Guía semanal";
+        return "cronometro".equals(l.getSource()) ? "Cronómetro" : "Pomodoro";
     }
 
     static String formatear(int minutos) {

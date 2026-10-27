@@ -124,7 +124,7 @@ public class WeeklyPanel extends JPanel {
                     timerBtn.setToolTipText("Iniciar temporizador");
                     timerBtn.setMargin(new Insets(1, 4, 1, 4));
                     timerBtn.addActionListener(e -> {
-                        TimerDialog dialog = new TimerDialog(mainFrame, s.getDurationMinutes());
+                        TimerDialog dialog = new TimerDialog(mainFrame, s.getDurationMinutes(), s.getSubjectId(), s.getTopicDescription(), s.getId());
                         dialog.setVisible(true);
                     });
 

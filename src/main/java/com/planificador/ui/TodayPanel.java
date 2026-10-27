@@ -124,7 +124,7 @@ public class TodayPanel extends JPanel {
 
                 JButton startBtn = new JButton("▶ Iniciar Cronómetro");
                 startBtn.addActionListener(e -> {
-                    TimerDialog dialog = new TimerDialog(mainFrame, session.getDurationMinutes());
+                    TimerDialog dialog = new TimerDialog(mainFrame, session.getDurationMinutes(), session.getSubjectId(), session.getTopicDescription(), session.getId());
                     dialog.setVisible(true);
                 });
 

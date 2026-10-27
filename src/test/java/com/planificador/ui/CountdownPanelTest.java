@@ -26,7 +26,7 @@ class CountdownPanelTest {
         assertEquals(4, p.labels().size());
         assertEquals("⏳ Charla es hoy", p.labels().get(0).getText());
         assertEquals("⏳ Primer parcial (Mecánica de Fluidos) en 6 días", p.labels().get(2).getText());
-        assertEquals(CountdownPanel.NORMAL, p.labels().get(3).getForeground());
+        assertEquals(CountdownPanel.normal(), p.labels().get(3).getForeground());
     }
 
     @Test

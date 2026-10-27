@@ -35,6 +35,17 @@ public class MainWindow extends JFrame {
         tabs.addTab("Historial", new HistorialPanel());
         setContentPane(tabs);
 
+        JMenuBar barra = new JMenuBar();
+        JMenu ver = new JMenu("Ver");
+        JCheckBoxMenuItem oscuro = new JCheckBoxMenuItem("Modo oscuro", Tema.esOscuro());
+        oscuro.addActionListener(e -> {
+            Tema.cambiar(oscuro.isSelected());
+            refreshAllPanels();
+        });
+        ver.add(oscuro);
+        barra.add(ver);
+        setJMenuBar(barra);
+
         DataManager dm = DataManager.getInstance();
         dm.setSaveErrorListener(msg -> SwingUtilities.invokeLater(() ->
                 JOptionPane.showMessageDialog(this, msg, "Error al guardar", JOptionPane.ERROR_MESSAGE)));
