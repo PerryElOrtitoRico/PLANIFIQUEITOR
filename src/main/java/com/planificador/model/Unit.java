@@ -21,6 +21,9 @@ public class Unit {
     public String getTitle() { return title; }
     public List<Topic> getTopics() { return topics; }
 
+    public void setTitle(String title) { this.title = title; }
+    public void setNumber(int number) { this.number = number; }
+
     public void addTopic(Topic topic) {
         this.topics.add(topic);
     }

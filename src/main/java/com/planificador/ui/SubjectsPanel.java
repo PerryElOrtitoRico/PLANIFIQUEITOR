@@ -58,8 +58,7 @@ public class SubjectsPanel extends JPanel {
         } else {
             for (Subject subject : list) {
                 JPanel card = new JPanel(new BorderLayout(10, 10));
-                card.setMaximumSize(new Dimension(Integer.MAX_VALUE, 220));
-                card.setBorder(BorderFactory.createCompoundBorder(
+                                card.setBorder(BorderFactory.createCompoundBorder(
                         BorderFactory.createLineBorder(UIManager.getColor("Component.borderColor"), 1),
                         BorderFactory.createEmptyBorder(12, 15, 12, 15)
                 ));
@@ -94,8 +93,15 @@ public class SubjectsPanel extends JPanel {
                     }
                 });
 
+                JButton addUnitBtn = new JButton("Agregar unidad");
+                addUnitBtn.addActionListener(e -> addUnit(subject));
+                JPanel botones = new JPanel(new FlowLayout(FlowLayout.RIGHT, 6, 0));
+                botones.setOpaque(false);
+                botones.add(addUnitBtn);
+                botones.add(deleteBtn);
+
                 topInfo.add(textContainer, BorderLayout.WEST);
-                topInfo.add(deleteBtn, BorderLayout.EAST);
+                topInfo.add(botones, BorderLayout.EAST);
 
                 // Units & Topics list
                 JPanel unitsContainer = new JPanel();
@@ -104,27 +110,45 @@ public class SubjectsPanel extends JPanel {
                 unitsContainer.setBorder(BorderFactory.createEmptyBorder(8, 0, 0, 0));
 
                 if (subject.getUnits().isEmpty()) {
-                    JLabel noUnits = new JLabel("<html><font color='#94a3b8'><i>Sin unidades creadas</i></font></html>");
+                    JLabel noUnits = new JLabel("<html><font color='#94a3b8'><i>Sin unidades: usá 'Agregar unidad'</i></font></html>");
                     unitsContainer.add(noUnits);
                 } else {
                     for (Unit u : subject.getUnits()) {
-                        JLabel uLabel = new JLabel("Unidad " + u.getNumber() + ": " + u.getTitle());
-                        unitsContainer.add(uLabel);
+                        JPanel uRow = new JPanel(new BorderLayout());
+                        uRow.setOpaque(false);
+                        JLabel uLabel = new JLabel(u.getTitle());
+                        uLabel.setFont(uLabel.getFont().deriveFont(Font.BOLD));
+                        JPanel uBtns = new JPanel(new FlowLayout(FlowLayout.RIGHT, 4, 0));
+                        uBtns.setOpaque(false);
+                        uBtns.add(smallButton("Agregar temas", () -> addTopics(u)));
+                        uBtns.add(smallButton("Renombrar", () -> renameUnit(u)));
+                        uBtns.add(smallButton("Subir", () -> moveUnit(subject, u, -1)));
+                        uBtns.add(smallButton("Bajar", () -> moveUnit(subject, u, 1)));
+                        uBtns.add(smallButton("Eliminar", () -> removeUnit(subject, u)));
+                        uRow.add(uLabel, BorderLayout.WEST);
+                        uRow.add(uBtns, BorderLayout.EAST);
+                        uRow.setBorder(BorderFactory.createEmptyBorder(6, 0, 2, 0));
+                        unitsContainer.add(uRow);
 
                         for (Topic topic : u.getTopics()) {
+                            JPanel tRow = new JPanel(new BorderLayout());
+                            tRow.setOpaque(false);
                             JCheckBox topicChk = new JCheckBox(topic.getTitle());
                             topicChk.setSelected(topic.isCompleted());
                             topicChk.setOpaque(false);
                             topicChk.addActionListener(ev -> {
                                 topic.setCompleted(topicChk.isSelected());
                                 DataManager.getInstance().saveData();
-                                if (mainFrame != null) {
-                                    mainFrame.refreshAllPanels();
-                                } else {
-                                    refresh();
-                                }
+                                changed();
                             });
-                            unitsContainer.add(topicChk);
+                            JPanel tBtns = new JPanel(new FlowLayout(FlowLayout.RIGHT, 4, 0));
+                            tBtns.setOpaque(false);
+                            tBtns.add(smallButton("Renombrar", () -> renameTopic(topic)));
+                            tBtns.add(smallButton("Eliminar", () -> { u.getTopics().remove(topic); DataManager.getInstance().saveData(); changed(); }));
+                            tRow.add(topicChk, BorderLayout.WEST);
+                            tRow.add(tBtns, BorderLayout.EAST);
+                            tRow.setBorder(BorderFactory.createEmptyBorder(0, 20, 0, 0));
+                            unitsContainer.add(tRow);
                         }
                     }
                 }
@@ -132,6 +156,7 @@ public class SubjectsPanel extends JPanel {
                 card.add(topInfo, BorderLayout.NORTH);
                 card.add(unitsContainer, BorderLayout.CENTER);
 
+                card.setMaximumSize(new Dimension(Integer.MAX_VALUE, card.getPreferredSize().height));
                 subjectsList.add(card);
                 subjectsList.add(Box.createRigidArea(new Dimension(0, 12)));
             }
@@ -155,18 +180,12 @@ public class SubjectsPanel extends JPanel {
         int option = JOptionPane.showConfirmDialog(this, message, "Agregar Nueva Materia", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
         if (option == JOptionPane.OK_OPTION && !nameField.getText().trim().isEmpty()) {
             Subject newSubject = new Subject(
-                    "s_" + System.currentTimeMillis(),
+                    "s_" + java.util.UUID.randomUUID(),
                     nameField.getText().trim(),
                     "#4f46e5",
                     profField.getText().trim(),
                     scheduleField.getText().trim()
             );
-
-            // Add default unit & topic so user can track progress immediately
-            Unit u1 = new Unit("u_" + System.currentTimeMillis(), 1, "Unidad 1: Introducción");
-            u1.addTopic(new Topic("t_" + System.currentTimeMillis() + "_1", "Conceptos Fundamentales", false));
-            u1.addTopic(new Topic("t_" + System.currentTimeMillis() + "_2", "Ejercicios Prácticos", false));
-            newSubject.getUnits().add(u1);
 
             DataManager.getInstance().addSubject(newSubject);
             if (mainFrame != null) {
@@ -175,5 +194,84 @@ public class SubjectsPanel extends JPanel {
                 refresh();
             }
         }
+    }
+
+    private void changed() {
+        if (mainFrame != null) mainFrame.refreshAllPanels();
+        else refresh();
+    }
+
+    private static JButton smallButton(String text, Runnable action) {
+        JButton b = new JButton(text);
+        b.setMargin(new Insets(1, 6, 1, 6));
+        b.setFocusPainted(false);
+        b.addActionListener(e -> action.run());
+        return b;
+    }
+
+    /** Pide un texto; devuelve null si cancela o queda vacío. */
+    private String ask(String message, String title, String initial) {
+        JTextField f = new JTextField(initial, 28);
+        int op = JOptionPane.showConfirmDialog(this, new Object[]{message, f}, title, JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
+        String t = f.getText().trim();
+        return op == JOptionPane.OK_OPTION && !t.isEmpty() ? t : null;
+    }
+
+    private void addUnit(Subject subject) {
+        String title = ask("Nombre de la unidad (escribilo como quieras, ej. \"Unidad 1: Cinemática\" o \"Anexos\"):",
+                "Agregar unidad", "Unidad " + (subject.getUnits().size() + 1) + ": ");
+        if (title == null) return;
+        subject.getUnits().add(new Unit("u_" + java.util.UUID.randomUUID(), subject.getUnits().size() + 1, title));
+        DataManager.getInstance().saveData();
+        changed();
+    }
+
+    private void renameUnit(Unit u) {
+        String title = ask("Nuevo nombre de la unidad:", "Renombrar unidad", u.getTitle());
+        if (title == null) return;
+        u.setTitle(title);
+        DataManager.getInstance().saveData();
+        changed();
+    }
+
+    private void removeUnit(Subject subject, Unit u) {
+        int n = u.getTopics().size();
+        int op = JOptionPane.showConfirmDialog(this,
+                "¿Eliminar \"" + u.getTitle() + "\"" + (n > 0 ? " y sus " + n + " temas" : "") + "?",
+                "Eliminar unidad", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+        if (op != JOptionPane.YES_OPTION) return;
+        subject.getUnits().remove(u);
+        DataManager.getInstance().saveData();
+        changed();
+    }
+
+    private void moveUnit(Subject subject, Unit u, int delta) {
+        List<Unit> units = subject.getUnits();
+        int i = units.indexOf(u), j = i + delta;
+        if (i < 0 || j < 0 || j >= units.size()) return;
+        units.remove(i);
+        units.add(j, u);
+        DataManager.getInstance().saveData();
+        changed();
+    }
+
+    private void addTopics(Unit u) {
+        JTextArea area = new JTextArea(8, 32);
+        int op = JOptionPane.showConfirmDialog(this, new Object[]{"Temas de \"" + u.getTitle() + "\" (uno por línea):", new JScrollPane(area)},
+                "Agregar temas", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
+        if (op != JOptionPane.OK_OPTION) return;
+        for (String line : area.getText().split("\\R")) {
+            if (!line.trim().isEmpty()) u.addTopic(new Topic("t_" + java.util.UUID.randomUUID(), line.trim(), false));
+        }
+        DataManager.getInstance().saveData();
+        changed();
+    }
+
+    private void renameTopic(Topic t) {
+        String title = ask("Nuevo nombre del tema:", "Renombrar tema", t.getTitle());
+        if (title == null) return;
+        t.setTitle(title);
+        DataManager.getInstance().saveData();
+        changed();
     }
 }
