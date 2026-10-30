@@ -1,12 +1,19 @@
 package com.planificador.ui;
 
+import com.planificador.panel.PanelSincronizador;
 import com.planificador.service.DataManager;
+import panel.cliente.PanelCompartido;
 
 import javax.swing.*;
 import java.awt.*;
+import java.nio.file.Path;
 
 public class MainWindow extends JFrame {
     private JTabbedPane tabs;
+    private JMenuItem conexionPanel;
+    private PanelCompartido panelCompartido;
+    private PanelSincronizador sincronizador;
+    private Path carpetaDatos;
 
     public MainWindow() {
         setTitle("Planificador de estudio");
@@ -44,6 +51,13 @@ public class MainWindow extends JFrame {
         });
         ver.add(oscuro);
         barra.add(ver);
+        JMenu menuPanel = new JMenu("Panel");
+        conexionPanel = new JMenuItem("Conexión con el panel…");
+        conexionPanel.setEnabled(false); // se habilita con setPanel
+        conexionPanel.addActionListener(e ->
+                new DialogoPanel(this, panelCompartido, sincronizador, carpetaDatos).setVisible(true));
+        menuPanel.add(conexionPanel);
+        barra.add(menuPanel);
         setJMenuBar(barra);
 
         DataManager dm = DataManager.getInstance();
@@ -53,6 +67,14 @@ public class MainWindow extends JFrame {
             SwingUtilities.invokeLater(() ->
                     JOptionPane.showMessageDialog(this, dm.getLoadWarning(), "Datos dañados", JOptionPane.WARNING_MESSAGE));
         }
+    }
+
+    /** Conecta la ventana con el panel y habilita Panel > Conexión con el panel. Sin esto el menú queda apagado. */
+    public void setPanel(PanelCompartido panel, PanelSincronizador sincronizador, Path carpeta) {
+        this.panelCompartido = panel;
+        this.sincronizador = sincronizador;
+        this.carpetaDatos = carpeta;
+        conexionPanel.setEnabled(panel != null && sincronizador != null && carpeta != null);
     }
 
     public void refreshAllPanels() {
