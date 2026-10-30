@@ -3,12 +3,19 @@ package com.planificador.panel;
 import com.planificador.panel.EstadoPanel.Estado;
 import panel.cliente.ConexionPanel;
 import panel.cliente.PanelCompartido;
+import com.planificador.model.ImportantDate;
+import com.planificador.model.StudyLog;
+import com.planificador.model.Subject;
 import panel.core.Registro;
 
 import java.time.Clock;
 import java.time.LocalDate;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.function.Consumer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -17,11 +24,16 @@ import java.util.logging.Logger;
  * registros nuevos, cambiados y marcas de borrado. Nunca lanza; lo único que hace es leer/escribir el
  * archivo de estado y encolar (la red la hace el hilo de la conexión).
  */
-public final class PanelSincronizador {
+public final class PanelSincronizador implements AutoCloseable {
 
     private static final Logger LOG = Logger.getLogger(PanelSincronizador.class.getName());
 
     public record Resumen(boolean panelActivo, int nuevos, int cambiados, int borrados) {
+    }
+
+    /** Copia de los datos tomada en el hilo que llama; {@link #aplicar} trabaja solo con ella. */
+    public record Instantanea(List<Subject> materias, List<StudyLog> estudio, List<ImportantDate> fechas,
+                              boolean confiable) {
     }
 
     private static final long RETENCION_MARCAS_MS = 30L * 24 * 60 * 60 * 1000;
@@ -30,6 +42,9 @@ public final class PanelSincronizador {
     private final EstadoPanel estado;
     private final DatosPlanificador datos;
     private final Clock reloj;
+    private ExecutorService ejecutor; // se crea la primera vez que hace falta; protegido por "cierre"
+    private boolean cerrado;
+    private final Object cierre = new Object();
 
     public PanelSincronizador(PanelCompartido panel, EstadoPanel estado, DatosPlanificador datos, Clock reloj) {
         this.panel = panel;
@@ -38,13 +53,76 @@ public final class PanelSincronizador {
         this.reloj = reloj;
     }
 
-    public synchronized Resumen sincronizar() {
+    /** Sincroniza ahora, en el hilo que llama: equivale a {@code aplicar(tomar())}. */
+    public Resumen sincronizar() {
+        return aplicar(tomar());
+    }
+
+    /**
+     * Copia los datos en el hilo que llama (el de eventos, normalmente: es el que los modifica). Devuelve null si
+     * el panel está apagado (no lee nada). Si los datos no se pueden leer devuelve una instantánea vacía y no confiable.
+     */
+    public Instantanea tomar() {
+        try {
+            ConexionPanel conexion = panel.get();
+            if (conexion == null || !conexion.activo()) return null;
+            return new Instantanea(datos.materias(), datos.estudio(), datos.fechas(), datos.confiable());
+        } catch (RuntimeException e) {
+            LOG.log(Level.WARNING, "No se pudieron copiar los datos para el panel: {0}", e.getClass().getSimpleName());
+            // Sin datos de fiar: se corre igual, pero sin publicar nada ni borrar nada.
+            return new Instantanea(List.of(), List.of(), List.of(), false);
+        }
+    }
+
+    /** Sincroniza en un hilo propio (los datos se copian ya, en el hilo que llama). Con el panel apagado no hace nada. */
+    public void sincronizarAsync() {
+        sincronizarAsync(null);
+    }
+
+    /**
+     * Como {@link #sincronizarAsync()}; {@code alTerminar} se invoca en el hilo de sincronización (no en el de
+     * eventos) con lo hecho, salvo que el panel esté apagado, caso en el que no se hace ni se invoca nada.
+     */
+    public void sincronizarAsync(Consumer<Resumen> alTerminar) {
+        Instantanea foto = tomar();
+        if (foto == null) return;
+        synchronized (cierre) {
+            if (cerrado) return;
+            if (ejecutor == null) {
+                ejecutor = Executors.newSingleThreadExecutor(r -> {
+                    Thread t = new Thread(r, "panel-sync-planificador");
+                    t.setDaemon(true);
+                    return t;
+                });
+            }
+            ejecutor.execute(() -> {
+                try {
+                    Resumen r = aplicar(foto);
+                    if (alTerminar != null) alTerminar.accept(r);
+                } catch (RuntimeException e) {
+                    LOG.log(Level.WARNING, "La sincronización asíncrona falló: {0}", e.getClass().getSimpleName());
+                }
+            });
+        }
+    }
+
+    /** Deja de aceptar corridas nuevas; la que esté en curso termina sola. No espera. */
+    @Override
+    public void close() {
+        synchronized (cierre) {
+            cerrado = true;
+            if (ejecutor != null) ejecutor.shutdown();
+        }
+    }
+
+    /** Todo lo demás: diferencia contra el estado, publicación, marcas de borrado y guardado del estado. */
+    public synchronized Resumen aplicar(Instantanea datos) {
         int nuevos = 0;
         int cambiados = 0;
         int borrados = 0;
         try {
             ConexionPanel conexion = panel.get();
-            if (conexion == null || !conexion.activo()) return new Resumen(false, 0, 0, 0);
+            if (datos == null || conexion == null || !conexion.activo()) return new Resumen(false, 0, 0, 0);
 
             Estado previo = estado.cargar();
             Map<String, String> fechas = new LinkedHashMap<>(previo.fechasNotas());

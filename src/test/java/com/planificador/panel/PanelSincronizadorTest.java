@@ -32,6 +32,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.function.BooleanSupplier;
 import java.util.logging.Handler;
 import java.util.logging.LogRecord;
@@ -126,6 +128,7 @@ class PanelSincronizadorTest {
         porCerrar.add(panel);
         estado = new EstadoPanel(carpeta.resolve("panel-estado.json"));
         sincronizador = new PanelSincronizador(panel, estado, datos, reloj);
+        porCerrar.add(sincronizador::close);
 
         datos.materias.add(materia("m1", "Análisis"));
     }
@@ -686,5 +689,120 @@ class PanelSincronizadorTest {
         sync(new Resumen(true, 0, 0, 1));
 
         assertTrue(estado.cargar().fechasNotas().isEmpty());
+    }
+
+    // ---- ejecución fuera del hilo del llamador ----
+
+    private static long hilosDelSincronizador() {
+        return Thread.getAllStackTraces().keySet().stream()
+                .filter(t -> t.isAlive() && t.getName().equals("panel-sync-planificador")).count();
+    }
+
+    @Test
+    void sincronizarEsTomarMasAplicar() throws Exception {
+        llenarBasico();
+        datos.fechas.add(new ImportantDate("f1", "Primer parcial", "m1", "2026-11-05", "parcial", ""));
+
+        PanelSincronizador.Instantanea foto = sincronizador.tomar();
+        datos.estudio.clear(); // lo que cambie después de tomar no cuenta
+        datos.fechas.clear();
+        Resumen r = sincronizador.aplicar(foto);
+
+        assertEquals(new Resumen(true, 2, 0, 0), r);
+        assertEquals(2, recibidos(2).size());
+        // y sincronizar() sigue siendo tomar + aplicar sobre los datos de ahora: ahora no hay nada y se borra todo
+        datos.estudio.add(ciclo("l9", "Otro", "2026-10-28", 10));
+        assertEquals(new Resumen(true, 1, 0, 2), sincronizador.sincronizar());
+    }
+
+    @Test
+    void lasCorridasAsincronasSeSerializan() throws Exception {
+        llenarBasico();
+        List<String> orden = new CopyOnWriteArrayList<>();
+        List<String> hilos = new CopyOnWriteArrayList<>();
+        List<Boolean> demonios = new CopyOnWriteArrayList<>();
+        CountDownLatch suelta = new CountDownLatch(1);
+        CountDownLatch primeraEmpezo = new CountDownLatch(1);
+
+        sincronizador.sincronizarAsync(res -> {
+            primeraEmpezo.countDown();
+            try {
+                suelta.await(5, TimeUnit.SECONDS);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+            orden.add("1:" + res.nuevos());
+            hilos.add(Thread.currentThread().getName());
+            demonios.add(Thread.currentThread().isDaemon());
+        });
+        assertTrue(primeraEmpezo.await(5, TimeUnit.SECONDS));
+        for (int i = 2; i <= 3; i++) {
+            int n = i;
+            sincronizador.sincronizarAsync(res -> {
+                orden.add(n + ":" + res.nuevos());
+                hilos.add(Thread.currentThread().getName());
+            });
+        }
+        Thread.sleep(100);
+        assertTrue(orden.isEmpty(), "la segunda no corre mientras la primera no termina");
+        suelta.countDown();
+        esperar(() -> orden.size() == 3);
+
+        assertEquals(List.of("1:1", "2:0", "3:0"), orden);
+        assertEquals(List.of("panel-sync-planificador", "panel-sync-planificador", "panel-sync-planificador"), hilos);
+        assertEquals(List.of(true), demonios);
+        assertEquals(1, hilosDelSincronizador());
+    }
+
+    @Test
+    void unaCorridaAsincronaQueLanzaNoMataElEjecutor() throws Exception {
+        llenarBasico();
+        List<String> orden = new CopyOnWriteArrayList<>();
+        sincronizador.sincronizarAsync(res -> {
+            orden.add("lanza");
+            throw new IllegalStateException("falla del oyente");
+        });
+        sincronizador.sincronizarAsync(res -> orden.add("sigue"));
+        esperar(() -> orden.size() == 2);
+
+        assertEquals(List.of("lanza", "sigue"), orden);
+        assertEquals(1, hilosDelSincronizador());
+    }
+
+    @Test
+    void inactivoNoCreaElHiloNiTomaLaInstantanea() throws Exception {
+        sincronizador.close();
+        esperar(() -> hilosDelSincronizador() == 0);
+        assertEquals(0, hilosDelSincronizador());
+        Path otra = carpeta.resolve("sin-config-async");
+        DatosPlanificador quePrueba = new DatosPlanificador() {
+            public List<Subject> materias() {
+                throw new AssertionError("no se debían leer los datos");
+            }
+
+            public List<StudyLog> estudio() {
+                throw new AssertionError("no se debían leer los datos");
+            }
+
+            public List<ImportantDate> fechas() {
+                throw new AssertionError("no se debían leer los datos");
+            }
+
+            public boolean confiable() {
+                throw new AssertionError("no se debían leer los datos");
+            }
+        };
+        PanelSincronizador s = new PanelSincronizador(new PanelCompartido(ConexionPanel.abrir(otra)),
+                new EstadoPanel(otra.resolve("panel-estado.json")), quePrueba, reloj);
+        List<Resumen> vistos2 = new CopyOnWriteArrayList<>();
+
+        s.sincronizarAsync();
+        s.sincronizarAsync(vistos2::add);
+        Thread.sleep(100);
+
+        assertEquals(0, hilosDelSincronizador());
+        assertTrue(vistos2.isEmpty());
+        assertFalse(Files.exists(otra));
+        s.close(); // sin hilo creado, cerrar no hace nada
     }
 }
