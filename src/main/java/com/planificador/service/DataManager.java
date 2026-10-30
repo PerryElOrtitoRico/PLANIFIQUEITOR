@@ -30,6 +30,7 @@ public class DataManager {
     private PomodoroSettings pomodoroSettings = new PomodoroSettings();
     private String loadWarning;                      // no null si el archivo no se pudo leer
     private java.util.function.Consumer<String> saveErrorListener;
+    private volatile Runnable alGuardar;             // se llama tras cada guardado exitoso; null = ninguno
 
     /**
      * @param dataFile    archivo donde se guardan y leen los datos
@@ -72,6 +73,9 @@ public class DataManager {
 
     /** Quién se entera cuando no se puede guardar (la interfaz muestra un diálogo). */
     public void setSaveErrorListener(java.util.function.Consumer<String> listener) { this.saveErrorListener = listener; }
+
+    /** Un único oyente que se avisa después de cada guardado exitoso (nunca si falló). null lo quita. */
+    public void setAlGuardar(Runnable oyente) { this.alGuardar = oyente; }
 
     private void migrateLegacyFile(List<Path> legacyFiles) {
         if (Files.exists(dataFile)) {
@@ -206,6 +210,15 @@ public class DataManager {
             e.printStackTrace();
             if (saveErrorListener != null) {
                 saveErrorListener.accept("No se pudieron guardar los datos en " + dataFile + ":\n" + e.getMessage());
+            }
+            return;
+        }
+        Runnable oyente = alGuardar;
+        if (oyente != null) {
+            try {
+                oyente.run();
+            } catch (RuntimeException e) {
+                // un oyente que falla nunca rompe el guardado
             }
         }
     }
