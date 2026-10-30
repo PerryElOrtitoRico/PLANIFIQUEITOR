@@ -73,7 +73,7 @@ Menú **Panel → Conexión con el panel…** y completá:
 - **Dispositivo** (por ejemplo `pc`; el servidor igual lo reemplaza por el del token).
 - La casilla **Enviar al panel**, que se puede destildar para pausar el envío sin perder la configuración.
 
-Los botones son **Probar conexión**, **Reenviar todo al panel**, **Guardar** y **Cancelar**. **Probar conexión** verifica la dirección y el token sin guardar. **Reenviar todo al panel** olvida lo ya mandado y vuelve a mandar todo el historial, con la conexión que está guardada (no con lo que esté escrito sin guardar); sirve, por ejemplo, después de borrar cosas a mano en el panel. Si cambiás la dirección a otro servidor, el programa también olvida lo mandado y manda todo de nuevo.
+Los botones son **Probar conexión**, **Reenviar todo al panel**, **Guardar** y **Cancelar** (y **Confirmar borrados**, que solo aparece cuando hay borrados retenidos; ver más abajo). **Probar conexión** verifica la dirección y el token sin guardar. **Reenviar todo al panel** olvida lo ya mandado y vuelve a mandar todo el historial, con la conexión que está guardada (no con lo que esté escrito sin guardar); sirve, por ejemplo, después de borrar cosas a mano en el panel. Como olvida lo mandado, **no borra** del panel lo que hayas borrado en el Planificador mientras el panel estaba apagado: esos registros ya no figuran en la memoria y quedan en el panel hasta que los quites a mano.
 
 ### Dónde queda
 
@@ -81,7 +81,7 @@ Junto al archivo de datos, en `~/.local/share/planificador-estudio/` (o `$XDG_DA
 
 - `panel-cliente.properties`: dirección, token, dispositivo y si se envía (permisos 600 cuando el sistema lo permite).
 - `panel-cola.jsonl`: lo que todavía no llegó al panel. Solo existe si la conexión está activa.
-- `panel-estado.json`: lo último que se mandó de cada registro y las fechas recordadas de las notas sin fecha. Si se borra o se daña, el programa vuelve a mandar todo (los envíos son idempotentes).
+- `panel-estado.json`: lo último que se mandó de cada registro y las fechas recordadas de las notas sin fecha. Si se borra o se daña, el programa vuelve a mandar todo (los envíos son idempotentes). También recuerda **a qué dirección del panel pertenece** lo que mandó: si la dirección activa cambia (incluso si en el medio guardaste con «Enviar al panel» destildado y lo volviste a activar), el programa manda todo de nuevo al servidor nuevo y descarta las marcas de borrado viejas. Un archivo de estado de una versión anterior, sin dirección, adopta la actual sin reenviar nada.
 
 **Sin configuración no cambia nada**: si falta la dirección o el token, o la casilla está destildada, no se crean estos archivos, no se usa la red y no aparece ningún aviso.
 
@@ -95,7 +95,13 @@ Para no vaciar el panel por un problema local, a veces el programa manda lo nuev
 
 - **Archivo de datos dañado al abrir**: el programa arranca vacío y avisa; no se borra nada del panel mientras dure esa sesión. Se levanta recién al reiniciar, cuando el archivo carga bien.
 - **No quedó nada para mandar** (los datos están vacíos pero el panel todavía tiene registros vivos del Planificador): no se borran. Se levanta sola apenas hay algo para mandar.
+- **Borrado masivo**: si en un envío habría que borrar del panel **10 registros o más, o la mitad o más de los que el programa tiene mandados**, no se manda ningún borrado (lo nuevo y lo cambiado sí), se anota un aviso en el registro y la ventana **Panel → Conexión con el panel…** muestra «Hay N borrados retenidos por seguridad en el panel.» con el botón **Confirmar borrados**. Si de verdad querías borrar todo eso, apretá el botón; si fue un error (por ejemplo un archivo de datos reemplazado), arreglá los datos y los registros retenidos dejan de estar pendientes en el siguiente envío. Mientras tanto se vuelven a intentar en cada envío.
 - **No se pudo armar una parte de los datos** (por ejemplo una fecha o una nota con datos inválidos): no se borran en ese envío. Se levanta sola en el primer envío en que todo se arma completo.
+
+### Cosas a tener en cuenta
+
+- **El panel refleja al programa, no al revés**: si restaurás una copia vieja de `planificador_datos.json`, todo lo que es más nuevo que esa copia desaparece del panel (sujeto a la guarda de borrado masivo). Los registros borrados así quedan marcados como borrados, no destruidos: si volvés a poner los datos más nuevos y el programa guarda o sincroniza de nuevo, vuelven a aparecer.
+- **Una sola copia del programa por carpeta de datos**: dos copias del programa (o dos PC) no deben compartir la misma carpeta de datos. No hay ningún bloqueo y el panel queda reflejando a quien haya guardado último. Además, una carpeta sincronizada (Nextcloud, Drive, etc.) copiaría también `panel-cliente.properties`, que tiene el token.
 
 ### Qué muestra el panel
 
