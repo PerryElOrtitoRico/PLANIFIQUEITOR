@@ -57,7 +57,7 @@ public class MainWindow extends JFrame {
         conexionPanel = new JMenuItem("Conexión con el panel…");
         conexionPanel.setEnabled(false); // se habilita con setPanel
         conexionPanel.addActionListener(e ->
-                new DialogoPanel(this, panelCompartido, sincronizador, estadoPanel, carpetaDatos).setVisible(true));
+                new DialogoPanel(this, panelCompartido, sincronizador, carpetaDatos).setVisible(true));
         menuPanel.add(conexionPanel);
         barra.add(menuPanel);
         setJMenuBar(barra);

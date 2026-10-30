@@ -52,7 +52,7 @@ class PanelSincronizadorTest {
     private static final Gson GSON = new Gson();
 
     /** Reloj mutable: se puede adelantar y también retroceder. */
-    private static final class Reloj extends Clock {
+    private static class Reloj extends Clock {
         long ms = AHORA;
 
         @Override
@@ -804,5 +804,146 @@ class PanelSincronizadorTest {
         assertTrue(vistos2.isEmpty());
         assertFalse(Files.exists(otra));
         s.close(); // sin hilo creado, cerrar no hace nada
+    }
+
+    // ---- estado serializado e instantánea inmutable ----
+
+    /** Reloj que, desde el hilo del sincronizador asíncrono, se queda esperando dentro de aplicar (al publicar). */
+    private static final class RelojQueBloquea extends Reloj {
+        volatile CountDownLatch entro;
+        volatile CountDownLatch suelta;
+
+        @Override
+        public long millis() {
+            CountDownLatch e = entro;
+            if (e != null && Thread.currentThread().getName().equals("panel-sync-planificador")) {
+                e.countDown();
+                try {
+                    suelta.await(5, TimeUnit.SECONDS);
+                } catch (InterruptedException ex) {
+                    Thread.currentThread().interrupt();
+                }
+            }
+            return super.millis();
+        }
+    }
+
+    /** Sincronizador propio con un reloj que bloquea; el estado ya tiene lo básico enviado. */
+    private PanelSincronizador conRelojQueBloquea(RelojQueBloquea r) throws Exception {
+        PanelSincronizador s = new PanelSincronizador(panel, estado, datos, r);
+        porCerrar.add(s::close);
+        llenarBasico();
+        datos.fechas.add(new ImportantDate("f1", "Primer parcial", "m1", "2026-11-05", "parcial", ""));
+        assertEquals(new Resumen(true, 2, 0, 0), s.sincronizar());
+        assertEquals(2, recibidos(2).size());
+        datos.estudio.add(ciclo("l3", "Integrales", "2026-10-29", 15)); // un cambio: la corrida en curso publica 1
+        return s;
+    }
+
+    @Test
+    void reenviarTodoNoSePierdeSiHayUnaCorridaEnCurso() throws Exception {
+        RelojQueBloquea r = new RelojQueBloquea();
+        PanelSincronizador s = conRelojQueBloquea(r);
+        r.entro = new CountDownLatch(1);
+        r.suelta = new CountDownLatch(1);
+        s.sincronizarAsync();
+        assertTrue(r.entro.await(5, TimeUnit.SECONDS), "la corrida asíncrona quedó a mitad de aplicar");
+
+        PanelSincronizador.Instantanea foto = s.tomar();
+        java.util.concurrent.atomic.AtomicReference<Resumen> resultado = new java.util.concurrent.atomic.AtomicReference<>();
+        Thread t = new Thread(() -> resultado.set(s.reenviarTodo(foto)));
+        t.start();
+        Thread.sleep(150);
+        assertTrue(t.isAlive(), "reenviarTodo espera a que termine la corrida en curso");
+        r.suelta.countDown();
+        t.join(5000);
+        assertFalse(t.isAlive());
+
+        // la corrida en curso no pisó el borrado: se reenviaron los 2 registros como nuevos
+        assertEquals(new Resumen(true, 2, 0, 0), resultado.get());
+        assertEquals(2, estado.cargar().registros().values().stream().filter(x -> !x.borrado()).count());
+        assertEquals(65, estado.cargar().registros().get("est:m1:2026-10-29").duracionMin());
+    }
+
+    @Test
+    void olvidarEstadoSeSerializaConAplicar() throws Exception {
+        RelojQueBloquea r = new RelojQueBloquea();
+        PanelSincronizador s = conRelojQueBloquea(r);
+        r.entro = new CountDownLatch(1);
+        r.suelta = new CountDownLatch(1);
+        s.sincronizarAsync();
+        assertTrue(r.entro.await(5, TimeUnit.SECONDS));
+
+        Thread t = new Thread(s::olvidarEstado);
+        t.start();
+        Thread.sleep(150);
+        assertTrue(t.isAlive(), "olvidarEstado espera a la corrida en curso");
+        r.suelta.countDown();
+        t.join(5000);
+
+        assertFalse(t.isAlive());
+        assertTrue(estado.cargar().registros().isEmpty(), "el borrado llegó después y no lo pisó el guardado");
+    }
+
+    @Test
+    void laInstantaneaNoDependeDeLosObjetosMutables() throws Exception {
+        llenarBasico();
+
+        PanelSincronizador.Instantanea foto = sincronizador.tomar();
+        datos.materias.get(0).setName("Otro nombre");
+        datos.estudio.clear();
+        Resumen r = sincronizador.aplicar(foto);
+
+        assertEquals(new Resumen(true, 1, 0, 0), r);
+        Registro reg = recibidos(1).get("est:m1:2026-10-29");
+        assertEquals("Análisis · Límites, Derivadas", reg.resumen());
+        assertEquals(50, reg.duracionMin());
+    }
+
+    @Test
+    void tomarNoLeeElArchivoDeEstadoDespuesDeLaPrimeraVez() throws Exception {
+        datos.materias.set(0, conNota("m1", "Análisis", null));
+        estado.guardar(new EstadoPanel.Estado(new LinkedHashMap<>(),
+                new LinkedHashMap<>(Map.of("nota:m1:parcial1", "2026-01-01"))));
+
+        PanelSincronizador.Instantanea primera = sincronizador.tomar();
+        estado.guardar(new EstadoPanel.Estado(new LinkedHashMap<>(),
+                new LinkedHashMap<>(Map.of("nota:m1:parcial1", "2026-02-02"))));
+        PanelSincronizador.Instantanea segunda = sincronizador.tomar();
+        Files.delete(estado.archivo());
+        Files.createDirectory(estado.archivo()); // ni siquiera es un archivo
+        PanelSincronizador.Instantanea tercera = sincronizador.tomar();
+
+        for (PanelSincronizador.Instantanea f : List.of(primera, segunda, tercera)) {
+            assertEquals("2026-01-01", f.deseado().get("nota:m1:parcial1").fecha());
+        }
+    }
+
+    @Test
+    void fechaRecordadaSeUsaEnTomar() throws Exception {
+        datos.materias.set(0, conNota("m1", "Análisis", null));
+        estado.guardar(new EstadoPanel.Estado(new LinkedHashMap<>(),
+                new LinkedHashMap<>(Map.of("nota:m1:parcial1", "2026-01-01"))));
+
+        PanelSincronizador.Instantanea foto = sincronizador.tomar();
+
+        assertEquals("2026-01-01", foto.deseado().get("nota:m1:parcial1").fecha());
+        assertTrue(foto.fechasNuevas().isEmpty());
+    }
+
+    @Test
+    void fechaNuevaSeRecuerdaDespuesDeAplicar() throws Exception {
+        datos.materias.set(0, conNota("m1", "Análisis", null));
+
+        PanelSincronizador.Instantanea foto = sincronizador.tomar();
+        assertEquals(Map.of("nota:m1:parcial1", "2026-10-30"), foto.fechasNuevas());
+        assertTrue(estado.cargar().fechasNotas().isEmpty(), "tomar no escribe nada");
+        sincronizador.aplicar(foto);
+        reloj.ms += 2 * DIA;
+        PanelSincronizador.Instantanea otra = sincronizador.tomar();
+
+        assertEquals("2026-10-30", otra.deseado().get("nota:m1:parcial1").fecha());
+        assertTrue(otra.fechasNuevas().isEmpty());
+        assertEquals(Map.of("nota:m1:parcial1", "2026-10-30"), estado.cargar().fechasNotas());
     }
 }
