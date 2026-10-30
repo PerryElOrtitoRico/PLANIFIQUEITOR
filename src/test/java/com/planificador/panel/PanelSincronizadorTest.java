@@ -73,6 +73,7 @@ class PanelSincronizadorTest {
         final List<Subject> materias = new ArrayList<>();
         final List<StudyLog> estudio = new ArrayList<>();
         final List<ImportantDate> fechas = new ArrayList<>();
+        boolean confiable = true;
 
         public List<Subject> materias() {
             return new ArrayList<>(materias);
@@ -84,6 +85,10 @@ class PanelSincronizadorTest {
 
         public List<ImportantDate> fechas() {
             return new ArrayList<>(fechas);
+        }
+
+        public boolean confiable() {
+            return confiable;
         }
     }
 
@@ -174,6 +179,11 @@ class PanelSincronizadorTest {
         return porId;
     }
 
+    /** Una fecha que no cambia: evita que lo deseado quede vacío (la guarda no borra en ese caso). */
+    private void ancla() {
+        datos.fechas.add(new ImportantDate("ancla", "Final", null, "2026-12-01", "final", ""));
+    }
+
     private void llenarBasico() {
         datos.estudio.add(ciclo("l1", "Límites", "2026-10-29", 30));
         datos.estudio.add(ciclo("l2", "Derivadas", "2026-10-29", 20));
@@ -259,7 +269,8 @@ class PanelSincronizadorTest {
     @Test
     void borrarElUltimoCicloDelDiaMandaMarcaDeBorrado() throws Exception {
         datos.estudio.add(ciclo("l1", "Límites", "2026-10-29", 30));
-        Registro antes = sync(new Resumen(true, 1, 0, 0)).get("est:m1:2026-10-29");
+        ancla();
+        Registro antes = sync(new Resumen(true, 2, 0, 0)).get("est:m1:2026-10-29");
         reloj.ms += 1_000;
         datos.estudio.clear();
 
@@ -270,13 +281,14 @@ class PanelSincronizadorTest {
         assertEquals(antes.resumen(), r.resumen());
         assertEquals(antes.duracionMin(), r.duracionMin());
         assertEquals("2026-10-29", r.fecha());
-        assertTrue(estado.cargar().registros().isEmpty());
+        assertTrue(estado.cargar().registros().get("est:m1:2026-10-29").borrado());
     }
 
     @Test
     void estudioQueQuedaEnCeroSeBorra() throws Exception {
         datos.estudio.add(ciclo("l1", "Límites", "2026-10-29", 30));
-        sync(new Resumen(true, 1, 0, 0));
+        ancla();
+        sync(new Resumen(true, 2, 0, 0));
         reloj.ms += 1_000;
         datos.estudio.set(0, ciclo("l1", "Límites", "2026-10-29", 0));
 
@@ -290,17 +302,18 @@ class PanelSincronizadorTest {
         datos.materias.set(0, conNota("m1", "Análisis", "2026-09-10"));
         llenarBasico();
         datos.fechas.add(new ImportantDate("f1", "Primer parcial", "m1", "2026-11-05", "parcial", ""));
-        sync(new Resumen(true, 3, 0, 0));
+        ancla();
+        sync(new Resumen(true, 4, 0, 0));
         reloj.ms += 1_000;
         datos.materias.clear();
         datos.estudio.clear();
-        datos.fechas.clear();
+        datos.fechas.removeIf(f -> f.getId().equals("f1"));
 
         Map<String, Registro> marcas = sync(new Resumen(true, 0, 0, 3));
 
         assertEquals(List.of("est:m1:2026-10-29", "fec:f1", "nota:m1:parcial1"), List.copyOf(marcas.keySet()));
         for (Registro r : marcas.values()) assertTrue(r.borrado());
-        assertTrue(estado.cargar().registros().isEmpty());
+        assertEquals(3, estado.cargar().registros().values().stream().filter(Registro::borrado).count());
     }
 
     @Test
@@ -315,7 +328,8 @@ class PanelSincronizadorTest {
 
         assertEquals(List.of("fec:f1"), List.copyOf(r.keySet()));
         assertTrue(r.get("fec:f1").borrado());
-        assertEquals(List.of("fec:f2"), List.copyOf(estado.cargar().registros().keySet()));
+        assertEquals(List.of("fec:f2"), estado.cargar().registros().values().stream()
+                .filter(x -> !x.borrado()).map(Registro::idEnFuente).toList());
     }
 
     @Test
@@ -324,8 +338,9 @@ class PanelSincronizadorTest {
         sync(new Resumen(true, 1, 0, 0));
         reloj.ms += 1_000;
         datos.materias.get(0).getCourse().getEvaluations().clear();
+        datos.fechas.add(new ImportantDate("f1", "Primer parcial", "m1", "2026-11-05", "parcial", ""));
 
-        Registro r = sync(new Resumen(true, 0, 0, 1)).get("nota:m1:parcial1");
+        Registro r = sync(new Resumen(true, 1, 0, 1)).get("nota:m1:parcial1");
 
         assertTrue(r.borrado());
         assertEquals(7.0, r.valor());
@@ -361,6 +376,10 @@ class PanelSincronizadorTest {
             public List<ImportantDate> fechas() {
                 throw new AssertionError("no se debían leer los datos");
             }
+
+            public boolean confiable() {
+                throw new AssertionError("no se debían leer los datos");
+            }
         };
         Path archivoEstado = otra.resolve("panel-estado.json");
         PanelSincronizador s = new PanelSincronizador(new PanelCompartido(inactiva), new EstadoPanel(archivoEstado),
@@ -391,7 +410,8 @@ class PanelSincronizadorTest {
     @Test
     void actualizadoEnNuncaRetrocede() throws Exception {
         datos.estudio.add(ciclo("l1", "Límites", "2026-10-29", 30));
-        Registro a = sync(new Resumen(true, 1, 0, 0)).get("est:m1:2026-10-29");
+        ancla();
+        Registro a = sync(new Resumen(true, 2, 0, 0)).get("est:m1:2026-10-29");
         reloj.ms -= 10 * DIA;
         datos.estudio.add(ciclo("l2", "Derivadas", "2026-10-29", 20));
 
@@ -433,6 +453,10 @@ class PanelSincronizadorTest {
 
                 public List<ImportantDate> fechas() {
                     return List.of();
+                }
+
+                public boolean confiable() {
+                    return true;
                 }
             };
             PanelSincronizador s = new PanelSincronizador(panel, estado, roto, reloj);
@@ -492,5 +516,175 @@ class PanelSincronizadorTest {
             assertNotNull(guardado.get(r.idEnFuente()));
             assertEquals(r, guardado.get(r.idEnFuente()));
         }
+    }
+
+    // ---- guardas contra el borrado masivo ----
+
+    private Map<String, Registro> conEstudioYFecha() throws Exception {
+        llenarBasico();
+        datos.fechas.add(new ImportantDate("f1", "Primer parcial", "m1", "2026-11-05", "parcial", ""));
+        return sync(new Resumen(true, 2, 0, 0));
+    }
+
+    private List<String> idsVivosEnElEstado() {
+        return estado.cargar().registros().values().stream().filter(x -> !x.borrado())
+                .map(Registro::idEnFuente).sorted().toList();
+    }
+
+    @Test
+    void conLaCargaDanadaNoSeBorraNada() throws Exception {
+        conEstudioYFecha();
+        reloj.ms += 1_000;
+        datos.confiable = false;
+        datos.estudio.clear();
+        datos.fechas.clear();
+        datos.fechas.add(new ImportantDate("f2", "TP 1", "m1", "2026-11-12", "tp", ""));
+
+        Map<String, Registro> r = sync(new Resumen(true, 1, 0, 0));
+
+        assertEquals(List.of("fec:f2"), List.copyOf(r.keySet()));
+        assertFalse(r.get("fec:f2").borrado());
+    }
+
+    @Test
+    void siConstruirFallaNoSeBorraNada() throws Exception {
+        conEstudioYFecha();
+        reloj.ms += 1_000;
+        StudyLog roto = new StudyLog("l9", "m1", null, "X", "2026-10-29", "09:00", 10) {
+            @Override
+            public int getMinutes() {
+                throw new IllegalStateException("roto");
+            }
+        };
+        datos.estudio.add(roto);
+        datos.fechas.clear();
+
+        Map<String, Registro> r = sync(new Resumen(true, 0, 0, 0));
+
+        assertTrue(r.isEmpty());
+        assertEquals(List.of("est:m1:2026-10-29", "fec:f1"), idsVivosEnElEstado());
+    }
+
+    @Test
+    void sinNadaDeseadoNoSeBorraLoYaEnviado() throws Exception {
+        conEstudioYFecha();
+        reloj.ms += 1_000;
+        datos.estudio.clear();
+        datos.fechas.clear();
+
+        Map<String, Registro> r = sync(new Resumen(true, 0, 0, 0));
+
+        assertTrue(r.isEmpty());
+        assertEquals(2, cuerpos.size());
+    }
+
+    @Test
+    void losIdsNoBorradosPorLaGuardiaSiguenEnElEstado() throws Exception {
+        Map<String, Registro> primera = conEstudioYFecha();
+        datos.confiable = false;
+        datos.estudio.clear();
+        datos.fechas.clear();
+        sync(new Resumen(true, 0, 0, 0));
+
+        assertEquals(primera, estado.cargar().registros());
+    }
+
+    @Test
+    void trasRecuperarLaConfianzaSeBorraLoQueFalta() throws Exception {
+        conEstudioYFecha();
+        datos.confiable = false;
+        datos.estudio.clear();
+        datos.fechas.clear();
+        datos.fechas.add(new ImportantDate("f2", "TP 1", "m1", "2026-11-12", "tp", ""));
+        sync(new Resumen(true, 1, 0, 0));
+        reloj.ms += 1_000;
+        datos.confiable = true;
+
+        Map<String, Registro> r = sync(new Resumen(true, 0, 0, 2));
+
+        assertEquals(List.of("est:m1:2026-10-29", "fec:f1"), List.copyOf(r.keySet()).stream().sorted().toList());
+        for (Registro x : r.values()) assertTrue(x.borrado());
+        assertEquals(List.of("fec:f2"), idsVivosEnElEstado());
+    }
+
+    // ---- marcas de borrado recordadas ----
+
+    @Test
+    void reaparecerDespuesDeBorrarUsaUnaMarcaDeTiempoMayor() throws Exception {
+        datos.estudio.add(ciclo("l1", "Límites", "2026-10-29", 30));
+        ancla();
+        sync(new Resumen(true, 2, 0, 0));
+        reloj.ms += 1_000;
+        datos.estudio.clear();
+        Registro marca = sync(new Resumen(true, 0, 0, 1)).get("est:m1:2026-10-29");
+        reloj.ms -= DIA; // el reloj retrocede entre el borrado y el regreso
+        datos.estudio.add(ciclo("l1", "Límites", "2026-10-29", 30));
+
+        Registro vuelta = sync(new Resumen(true, 1, 0, 0)).get("est:m1:2026-10-29");
+
+        assertFalse(vuelta.borrado());
+        assertEquals(marca.actualizadoEn() + 1, vuelta.actualizadoEn());
+    }
+
+    @Test
+    void reaparecerCuentaComoNuevo() throws Exception {
+        datos.fechas.add(new ImportantDate("f1", "Primer parcial", "m1", "2026-11-05", "parcial", ""));
+        ancla();
+        sync(new Resumen(true, 2, 0, 0));
+        datos.fechas.remove(0);
+        sync(new Resumen(true, 0, 0, 1));
+        datos.fechas.add(0, new ImportantDate("f1", "Primer parcial", "m1", "2026-11-05", "parcial", ""));
+
+        Resumen r = sincronizador.sincronizar();
+
+        assertEquals(new Resumen(true, 1, 0, 0), r);
+    }
+
+    @Test
+    void unaMarcaYaPublicadaNoSeRepite() throws Exception {
+        datos.estudio.add(ciclo("l1", "Límites", "2026-10-29", 30));
+        ancla();
+        sync(new Resumen(true, 2, 0, 0));
+        reloj.ms += 1_000;
+        datos.estudio.clear();
+        sync(new Resumen(true, 0, 0, 1));
+        reloj.ms += 1_000;
+
+        Map<String, Registro> otra = sync(new Resumen(true, 0, 0, 0));
+
+        assertTrue(otra.isEmpty());
+        assertEquals(3, cuerpos.size());
+        assertTrue(estado.cargar().registros().get("est:m1:2026-10-29").borrado());
+    }
+
+    @Test
+    void lasMarcasViejasSeDescartanDelEstado() throws Exception {
+        datos.estudio.add(ciclo("l1", "Límites", "2026-10-29", 30));
+        ancla();
+        sync(new Resumen(true, 2, 0, 0));
+        datos.estudio.clear();
+        sync(new Resumen(true, 0, 0, 1)); // marca en AHORA
+        reloj.ms += 29 * DIA;
+        sync(new Resumen(true, 0, 0, 0));
+        assertTrue(estado.cargar().registros().containsKey("est:m1:2026-10-29"), "a los 29 días sigue");
+
+        reloj.ms += 2 * DIA; // 31 días desde la marca
+        sync(new Resumen(true, 0, 0, 0));
+
+        assertFalse(estado.cargar().registros().containsKey("est:m1:2026-10-29"), "a los 31 días se descarta");
+        assertTrue(estado.cargar().registros().containsKey("fec:ancla"));
+    }
+
+    @Test
+    void fechasDeNotasQueYaNoExistenSeDescartan() throws Exception {
+        datos.materias.set(0, conNota("m1", "Análisis", null));
+        ancla();
+        sync(new Resumen(true, 2, 0, 0));
+        assertEquals(Map.of("nota:m1:parcial1", "2026-10-30"), estado.cargar().fechasNotas());
+        datos.materias.get(0).getCourse().getEvaluations().clear();
+
+        sync(new Resumen(true, 0, 0, 1));
+
+        assertTrue(estado.cargar().fechasNotas().isEmpty());
     }
 }

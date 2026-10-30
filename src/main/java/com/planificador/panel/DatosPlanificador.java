@@ -13,4 +13,10 @@ public interface DatosPlanificador {
     List<StudyLog> estudio();
 
     List<ImportantDate> fechas();
+
+    /**
+     * false si los datos no son de fiar (p. ej. el archivo no se pudo leer y se arrancó vacío): en ese caso
+     * el sincronizador no borra nada del panel.
+     */
+    boolean confiable();
 }
