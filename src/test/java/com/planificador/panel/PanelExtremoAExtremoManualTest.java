@@ -29,9 +29,12 @@ import java.net.http.HttpResponse;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 import java.util.function.BooleanSupplier;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
@@ -49,11 +52,18 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 @EnabledIfEnvironmentVariable(named = "PANEL_E2E_TOKEN", matches = ".+")
 class PanelExtremoAExtremoManualTest {
 
-    private static final String FQ = "s-fq";
-    private static final String ALG = "s-alg";
-    private static final String NOMBRE_FQ = "Física & Química";
-    private static final String NOMBRE_ALG = "Álgebra";
-    private static final String CLAVE_FQ = "fisica-quimica";
+    /** Sufijo único por corrida: ids, nombres y claves propios, para no chocar con corridas anteriores. */
+    private final String sufijo = UUID.randomUUID().toString().replace("-", "").substring(0, 6);
+    private final String FQ = "s-fq-" + sufijo;
+    private final String ALG = "s-alg-" + sufijo;
+    private final String F1 = "f1-" + sufijo;
+    private final String F2 = "f2-" + sufijo;
+    private final String F3 = "f3-" + sufijo;
+    private final String NOMBRE_FQ = "Física & Química " + sufijo;
+    private final String NOMBRE_ALG = "Álgebra " + sufijo;
+    private final String CLAVE_FQ = "fisica-quimica-" + sufijo;
+    /** El mismo reloj para las fechas de los datos y para el sincronizador (sin sorpresas a medianoche). */
+    private final Clock reloj = Clock.fixed(Instant.now(), ZoneId.systemDefault());
 
     @TempDir
     Path carpeta;
@@ -88,12 +98,18 @@ class PanelExtremoAExtremoManualTest {
         return JsonParser.parseString(resp.body());
     }
 
-    /** Registros del Planificador de un día, tal cual los devuelve el panel (los borrados no aparecen). */
+    /** true si el id es de esta corrida (sus materias y sus fechas), no de otras corridas en el mismo panel. */
+    private boolean propio(String id) {
+        return id.startsWith("est:" + FQ + ":") || id.startsWith("est:" + ALG + ":") || id.startsWith("nota:" + FQ + ":")
+                || id.equals("fec:" + F1) || id.equals("fec:" + F2) || id.equals("fec:" + F3);
+    }
+
+    /** Registros de esta corrida de un día, tal cual los devuelve el panel (los borrados no aparecen). */
     private List<JsonObject> delDia(LocalDate fecha) {
         List<JsonObject> res = new ArrayList<>();
         for (JsonElement e : get("/api/dia/" + fecha).getAsJsonArray()) {
             JsonObject o = e.getAsJsonObject();
-            if ("planificador".equals(o.get("fuente").getAsString())) res.add(o);
+            if ("planificador".equals(o.get("fuente").getAsString()) && propio(o.get("idEnFuente").getAsString())) res.add(o);
         }
         return res;
     }
@@ -153,15 +169,15 @@ class PanelExtremoAExtremoManualTest {
         dm.addStudySession(guia);
         dm.setSessionCompleted(guia, true);
 
-        dm.addImportantDate(new ImportantDate("f1", "Primer parcial", FQ, hoy.minusDays(3).toString(), "parcial", null));
-        dm.addImportantDate(new ImportantDate("f2", "Final integrador", FQ, hoy.plusDays(7).toString(), "final", null));
-        dm.addImportantDate(new ImportantDate("f3", "TP 2", ALG, hoy.plusDays(7).toString(), "tp", null));
+        dm.addImportantDate(new ImportantDate(F1, "Primer parcial", FQ, hoy.minusDays(3).toString(), "parcial", null));
+        dm.addImportantDate(new ImportantDate(F2, "Final integrador", FQ, hoy.plusDays(7).toString(), "final", null));
+        dm.addImportantDate(new ImportantDate(F3, "TP 2", ALG, hoy.plusDays(7).toString(), "tp", null));
         return guia;
     }
 
     @Test
     void sincronizaConsultaYBorraEnElPanel() throws Exception {
-        LocalDate hoy = LocalDate.now();
+        LocalDate hoy = LocalDate.now(reloj);
         LocalDate f4 = hoy.minusDays(4), f3 = hoy.minusDays(3), f2 = hoy.minusDays(2), f1 = hoy.minusDays(1),
                 futuro = hoy.plusDays(7);
         StudySession guia = armarDatos(hoy);
@@ -173,7 +189,7 @@ class PanelExtremoAExtremoManualTest {
         ConexionPanel.guardarConfig(conexionDir, url, token, "pc-prueba", true);
         try (ConexionPanel c = ConexionPanel.abrir(conexionDir); PanelCompartido panel = new PanelCompartido(c);
              PanelSincronizador sinc = new PanelSincronizador(panel, EstadoPanel.junto(archivoDatos),
-                     new DatosDeDataManager(), Clock.systemDefaultZone())) {
+                     new DatosDeDataManager(), reloj)) {
             assertTrue(c.activo());
 
             var meta = enviar(HttpRequest.newBuilder(URI.create(url + "/api/metas"))
@@ -188,76 +204,76 @@ class PanelExtremoAExtremoManualTest {
                 assertEquals(new Resumen(true, 9, 0, 0), sinc.sincronizar());
                 c.vaciarAhora();
                 final LocalDate fHoy = hoy;
-                esperar(() -> registro(f4, "est:s-fq:" + f4) != null && registro(f4, "est:s-alg:" + f4) != null
-                        && registro(f2, "est:s-fq:" + f2) != null && registro(fHoy, "est:s-alg:" + fHoy) != null
-                        && registro(f3, "fec:f1") != null && registro(futuro, "fec:f2") != null
-                        && registro(futuro, "fec:f3") != null && registro(f1, "nota:s-fq:parcial1") != null
-                        && registro(f2, "nota:s-fq:parcial2") != null);
+                esperar(() -> registro(f4, "est:" + FQ + ":" + f4) != null && registro(f4, "est:" + ALG + ":" + f4) != null
+                        && registro(f2, "est:" + FQ + ":" + f2) != null && registro(fHoy, "est:" + ALG + ":" + fHoy) != null
+                        && registro(f3, "fec:" + F1) != null && registro(futuro, "fec:" + F2) != null
+                        && registro(futuro, "fec:" + F3) != null && registro(f1, "nota:" + FQ + ":parcial1") != null
+                        && registro(f2, "nota:" + FQ + ":parcial2") != null);
                 assertEquals(0, c.pendientes(), "no tiene que quedar nada en la cola");
 
                 // estudio: un registro por materia y día, minutos sumados y temas distintos en orden
-                JsonObject fq4 = registro(f4, "est:s-fq:" + f4);
+                JsonObject fq4 = registro(f4, "est:" + FQ + ":" + f4);
                 assertNotNull(fq4);
                 assertEquals("esfuerzo", fq4.get("tipo").getAsString());
                 assertEquals("estudio", fq4.get("area").getAsString());
                 assertEquals(75, fq4.get("duracionMin").getAsInt());
-                assertEquals("Física & Química · Cinética & equilibrio, Termodinámica", fq4.get("resumen").getAsString());
+                assertEquals(NOMBRE_FQ + " · Cinética & equilibrio, Termodinámica", fq4.get("resumen").getAsString());
                 assertEquals(NOMBRE_FQ, detalle(fq4).get("materia").getAsString());
                 assertEquals(List.of("Cinética & equilibrio", "Termodinámica"), textos(detalle(fq4).getAsJsonArray("temas")));
                 assertEquals(3, detalle(fq4).get("ciclos").getAsInt());
-                JsonObject alg4 = registro(f4, "est:s-alg:" + f4);
+                JsonObject alg4 = registro(f4, "est:" + ALG + ":" + f4);
                 assertNotNull(alg4);
                 assertEquals(40, alg4.get("duracionMin").getAsInt());
-                assertEquals("Álgebra · Matrices", alg4.get("resumen").getAsString());
+                assertEquals(NOMBRE_ALG + " · Matrices", alg4.get("resumen").getAsString());
                 assertEquals(2, delDia(f4).stream().filter(o -> o.get("idEnFuente").getAsString().startsWith("est:")).count());
 
-                JsonObject fq2 = registro(f2, "est:s-fq:" + f2);
+                JsonObject fq2 = registro(f2, "est:" + FQ + ":" + f2);
                 assertNotNull(fq2);
                 assertEquals(55, fq2.get("duracionMin").getAsInt());
-                assertEquals("Física & Química · Gases", fq2.get("resumen").getAsString());
+                assertEquals(NOMBRE_FQ + " · Gases", fq2.get("resumen").getAsString());
                 assertEquals(List.of("Gases"), textos(detalle(fq2).getAsJsonArray("temas")));
                 assertEquals(2, detalle(fq2).get("ciclos").getAsInt());
 
-                JsonObject algHoy = registro(hoy, "est:s-alg:" + hoy);
+                JsonObject algHoy = registro(hoy, "est:" + ALG + ":" + hoy);
                 assertNotNull(algHoy);
                 assertEquals(50, algHoy.get("duracionMin").getAsInt());
-                assertEquals("Álgebra · Ejercicios de la guía 4", algHoy.get("resumen").getAsString());
+                assertEquals(NOMBRE_ALG + " · Ejercicios de la guía 4", algHoy.get("resumen").getAsString());
                 assertEquals(List.of("Ejercicios de la guía 4"), textos(detalle(algHoy).getAsJsonArray("temas")));
 
                 // fechas importantes: métrica, minutos estudiados, y los dos eventos del mismo día
-                JsonObject parcial = registro(f3, "fec:f1");
+                JsonObject parcial = registro(f3, "fec:" + F1);
                 assertNotNull(parcial);
                 assertEquals("evento", parcial.get("tipo").getAsString());
                 assertEquals("parcial", parcial.get("metrica").getAsString());
-                assertEquals("Parcial · Física & Química · Primer parcial", parcial.get("resumen").getAsString());
+                assertEquals("Parcial · " + NOMBRE_FQ + " · Primer parcial", parcial.get("resumen").getAsString());
                 assertEquals(75, detalle(parcial).get("minutosEstudiados").getAsInt());
-                JsonObject fin = registro(futuro, "fec:f2");
-                JsonObject tp = registro(futuro, "fec:f3");
+                JsonObject fin = registro(futuro, "fec:" + F2);
+                JsonObject tp = registro(futuro, "fec:" + F3);
                 assertNotNull(fin);
                 assertNotNull(tp);
                 assertEquals("final", fin.get("metrica").getAsString());
                 assertEquals("tp", tp.get("metrica").getAsString());
-                assertEquals("Final · Física & Química · Final integrador", fin.get("resumen").getAsString());
-                assertEquals("TP · Álgebra · TP 2", tp.get("resumen").getAsString());
+                assertEquals("Final · " + NOMBRE_FQ + " · Final integrador", fin.get("resumen").getAsString());
+                assertEquals("TP · " + NOMBRE_ALG + " · TP 2", tp.get("resumen").getAsString());
                 assertEquals(130, detalle(fin).get("minutosEstudiados").getAsInt());
                 assertEquals(90, detalle(tp).get("minutosEstudiados").getAsInt());
                 assertEquals(2, delDia(futuro).stream().filter(o -> o.get("idEnFuente").getAsString().startsWith("fec:")).count());
 
                 // notas: la nota efectiva (el recuperatorio, aunque sea más baja que la original)
-                JsonObject p1 = registro(f1, "nota:s-fq:parcial1");
-                JsonObject p2 = registro(f2, "nota:s-fq:parcial2");
+                JsonObject p1 = registro(f1, "nota:" + FQ + ":parcial1");
+                JsonObject p2 = registro(f2, "nota:" + FQ + ":parcial2");
                 assertNotNull(p1);
                 assertNotNull(p2);
                 assertEquals("resultado", p1.get("tipo").getAsString());
                 assertEquals("nota:" + CLAVE_FQ, p1.get("metrica").getAsString());
                 assertEquals(5.0, p1.get("valor").getAsDouble(), 1e-9);
-                assertEquals("Parcial 1 (recuperatorio) · Física & Química: 5", p1.get("resumen").getAsString());
+                assertEquals("Parcial 1 (recuperatorio) · " + NOMBRE_FQ + ": 5", p1.get("resumen").getAsString());
                 assertTrue(detalle(p1).get("recuperatorio").getAsBoolean());
                 assertEquals(7, detalle(p1).get("notaAprobacion").getAsInt());
                 assertEquals("nota:" + CLAVE_FQ, p2.get("metrica").getAsString());
                 assertEquals(6.0, p2.get("valor").getAsDouble(), 1e-9);
-                assertEquals("Parcial 2 · Física & Química: 6", p2.get("resumen").getAsString());
-                assertEquals(0, delDia(f4).stream().filter(o -> o.get("idEnFuente").getAsString().equals("nota:s-fq:parcial1")).count(),
+                assertEquals("Parcial 2 · " + NOMBRE_FQ + ": 6", p2.get("resumen").getAsString());
+                assertEquals(0, delDia(f4).stream().filter(o -> o.get("idEnFuente").getAsString().equals("nota:" + FQ + ":parcial1")).count(),
                         "la nota original (8) no se manda");
 
                 // progreso de la meta: la mejor entre las notas efectivas (6), no la original de 8
@@ -295,25 +311,25 @@ class PanelExtremoAExtremoManualTest {
                 assertEquals(new Resumen(true, 0, 3, 0), sinc.sincronizar());
                 c.vaciarAhora();
                 esperar(() -> {
-                    JsonObject r = registro(f4, "est:s-fq:" + f4);
+                    JsonObject r = registro(f4, "est:" + FQ + ":" + f4);
                     return r != null && r.get("duracionMin").getAsInt() == 50;
                 });
-                fq4 = registro(f4, "est:s-fq:" + f4);
+                fq4 = registro(f4, "est:" + FQ + ":" + f4);
                 assertEquals(50, fq4.get("duracionMin").getAsInt());
-                assertEquals("Física & Química · Cinética & equilibrio", fq4.get("resumen").getAsString());
+                assertEquals(NOMBRE_FQ + " · Cinética & equilibrio", fq4.get("resumen").getAsString());
                 assertEquals(List.of("Cinética & equilibrio"), textos(detalle(fq4).getAsJsonArray("temas")));
                 assertEquals(2, detalle(fq4).get("ciclos").getAsInt());
-                assertEquals(50, detalle(registro(f3, "fec:f1")).get("minutosEstudiados").getAsInt());
-                assertEquals(105, detalle(registro(futuro, "fec:f2")).get("minutosEstudiados").getAsInt());
+                assertEquals(50, detalle(registro(f3, "fec:" + F1)).get("minutosEstudiados").getAsInt());
+                assertEquals(105, detalle(registro(futuro, "fec:" + F2)).get("minutosEstudiados").getAsInt());
                 assertEquals(antes, idsEnRango(f4, futuro), "el mismo conjunto de ids, sin duplicados");
 
                 // ---- quitar el último ciclo del día borra el registro del día en el panel
                 dm.setSessionCompleted(guia, false);
                 assertEquals(new Resumen(true, 0, 1, 1), sinc.sincronizar());
                 c.vaciarAhora();
-                esperar(() -> registro(hoy, "est:s-alg:" + hoy) == null);
-                assertEquals(null, registro(hoy, "est:s-alg:" + hoy));
-                assertEquals(40, detalle(registro(futuro, "fec:f3")).get("minutosEstudiados").getAsInt());
+                esperar(() -> registro(hoy, "est:" + ALG + ":" + hoy) == null);
+                assertEquals(null, registro(hoy, "est:" + ALG + ":" + hoy));
+                assertEquals(40, detalle(registro(futuro, "fec:" + F3)).get("minutosEstudiados").getAsInt());
                 assertEquals(0, c.pendientes());
             } finally {
                 enviar(HttpRequest.newBuilder(URI.create(url + "/api/metas/" + idMeta)).DELETE());
@@ -338,16 +354,17 @@ class PanelExtremoAExtremoManualTest {
         return false;
     }
 
-    private static boolean hayEvento(JsonObject mes, LocalDate fecha) {
+    private boolean hayEvento(JsonObject mes, LocalDate fecha) {
         for (JsonElement ce : mes.getAsJsonArray("eventos")) {
-            if (ce.toString().contains(fecha.toString())) return true;
+            JsonObject o = ce.getAsJsonObject();
+            if (fecha.toString().equals(o.get("fecha").getAsString()) && propio(o.get("idEnFuente").getAsString())) return true;
         }
         return false;
     }
 
     @Test
     void conElPanelCaidoTodoQuedaEnLaCola() throws Exception {
-        LocalDate hoy = LocalDate.now();
+        LocalDate hoy = LocalDate.now(reloj);
         armarDatos(hoy);
         int puertoCerrado;
         try (ServerSocket s = new ServerSocket(0)) {
@@ -358,7 +375,7 @@ class PanelExtremoAExtremoManualTest {
         try (ConexionPanel c = ConexionPanel.abrir(conexionDir); PanelCompartido panel = new PanelCompartido(c);
              PanelSincronizador sinc = new PanelSincronizador(panel,
                      EstadoPanel.junto(DataManager.getInstance().getDataFile()), new DatosDeDataManager(),
-                     Clock.systemDefaultZone())) {
+                     reloj)) {
             Resumen resumen = assertDoesNotThrow(sinc::sincronizar);
             assertEquals(new Resumen(true, 9, 0, 0), resumen);
             assertDoesNotThrow(c::vaciarAhora);
@@ -366,9 +383,9 @@ class PanelExtremoAExtremoManualTest {
         }
         List<String> ids = new ColaLocal(conexionDir.resolve("panel-cola.jsonl")).pendientes().stream()
                 .map(r -> r.idEnFuente()).sorted().toList();
-        assertEquals(List.of("est:s-alg:" + hoy, "est:s-alg:" + hoy.minusDays(4), "est:s-fq:" + hoy.minusDays(2),
-                "est:s-fq:" + hoy.minusDays(4), "fec:f1", "fec:f2", "fec:f3", "nota:s-fq:parcial1",
-                "nota:s-fq:parcial2").stream().sorted().toList(), ids);
+        assertEquals(List.of("est:" + ALG + ":" + hoy, "est:" + ALG + ":" + hoy.minusDays(4), "est:" + FQ + ":" + hoy.minusDays(2),
+                "est:" + FQ + ":" + hoy.minusDays(4), "fec:" + F1, "fec:" + F2, "fec:" + F3, "nota:" + FQ + ":parcial1",
+                "nota:" + FQ + ":parcial2").stream().sorted().toList(), ids);
         assertEquals(9, Files.readAllLines(conexionDir.resolve("panel-cola.jsonl")).stream().filter(l -> !l.isBlank()).count());
     }
 }
