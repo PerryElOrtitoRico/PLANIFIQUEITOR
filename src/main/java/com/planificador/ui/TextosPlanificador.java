@@ -45,4 +45,17 @@ final class TextosPlanificador {
     static boolean debeCerrarTrasGuardar(boolean enviarMarcado, boolean activa) {
         return !enviarMarcado || activa;
     }
+
+    static String borradosRetenidos(int n) {
+        return "Hay " + n + " borrados retenidos por seguridad en el panel.";
+    }
+
+    /** Aviso tras "Confirmar borrados": distingue lo entregado de lo que quedó en cola. */
+    static String borradosConfirmados(Resumen resumen, int pendientes) {
+        if (!resumen.panelActivo()) return notaInactiva();
+        return pendientes > 0
+                ? "Se pusieron " + resumen.borrados() + " borrados en la cola; el panel no respondió, "
+                  + "se mandarán cuando vuelva la conexión."
+                : "Se borraron " + resumen.borrados() + " registros del panel.";
+    }
 }

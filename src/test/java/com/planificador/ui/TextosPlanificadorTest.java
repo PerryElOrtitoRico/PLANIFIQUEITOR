@@ -65,4 +65,21 @@ class TextosPlanificadorTest {
         assertTrue(TextosPlanificador.debeCerrarTrasGuardar(false, false));
         assertTrue(TextosPlanificador.debeCerrarTrasGuardar(false, true));
     }
+
+    @Test
+    void textoDeBorradosRetenidos() {
+        assertEquals("Hay 15 borrados retenidos por seguridad en el panel.", TextosPlanificador.borradosRetenidos(15));
+        assertEquals("Hay 1 borrados retenidos por seguridad en el panel.", TextosPlanificador.borradosRetenidos(1));
+    }
+
+    @Test
+    void confirmacionDeBorrados() {
+        assertEquals("Se borraron 15 registros del panel.",
+                TextosPlanificador.borradosConfirmados(new Resumen(true, 0, 0, 15), 0));
+        assertEquals("Se pusieron 15 borrados en la cola; el panel no respondió, "
+                + "se mandarán cuando vuelva la conexión.",
+                TextosPlanificador.borradosConfirmados(new Resumen(true, 0, 0, 15), 3));
+        assertEquals(TextosPlanificador.notaInactiva(),
+                TextosPlanificador.borradosConfirmados(new Resumen(false, 0, 0, 0), 0));
+    }
 }
