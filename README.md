@@ -18,7 +18,7 @@ Aplicación nativa de escritorio desarrollada en **Java (Swing + FlatLaf)** para
 
 ## 🚀 Requisitos
 - Java JDK 21.
-- Maven 3.9+.
+- Maven 3.6+.
 - La librería `panel:sync-core:1.0.0-SNAPSHOT`, que no está en ningún repositorio público: vive en el repo `Panel` (`~/Escritorio/Hobbies/programacion/Proyectos/Panel`, rama `main`) y hay que instalarla en el Maven local antes de compilar. Desde la carpeta de ese repo:
 
 ```bash
@@ -91,12 +91,16 @@ El guardado no se interrumpe: lo que no se pudo entregar queda en `panel-cola.js
 
 ### Guardas contra borrados por error
 
-Para no vaciar el panel por un problema local, **no se manda ningún borrado** cuando el archivo de datos estaba dañado al abrir el programa (arranca vacío y avisa), cuando no quedó nada para mandar o cuando no se pudo armar parte de los datos. Esa guarda dura hasta que, tras reiniciar el programa, los datos carguen bien otra vez. Lo nuevo y lo que cambió sí se sigue mandando.
+Para no vaciar el panel por un problema local, a veces el programa manda lo nuevo y lo que cambió pero **no manda borrados**:
+
+- **Archivo de datos dañado al abrir**: el programa arranca vacío y avisa; no se borra nada del panel mientras dure esa sesión. Se levanta recién al reiniciar, cuando el archivo carga bien.
+- **No quedó nada para mandar** (los datos están vacíos pero el panel todavía tiene registros vivos del Planificador): no se borran. Se levanta sola apenas hay algo para mandar.
+- **No se pudo armar una parte de los datos** (por ejemplo una fecha o una nota con datos inválidos): no se borran en ese envío. Se levanta sola en el primer envío en que todo se arma completo.
 
 ### Qué muestra el panel
 
 - **Estudio**: cada día con estudio es una celda del calendario del área Estudio; el detalle del día lista, por materia, los minutos y los temas.
-- **Fechas importantes**: aparecen en el calendario del mes y en el día, con la nota "Llevás X de estudio en la materia".
+- **Fechas importantes**: aparecen en el calendario del mes (el texto de cada evento, en la celda del día) y en el detalle del día, que además muestra la nota "Llevás X de estudio en la materia".
 - **Notas**: sirven para crear una **meta** en el panel, por ejemplo "aprobar Mecánica de Fluidos" de 0 a la nota de aprobación, con la métrica `nota:<clave de la materia>`. El panel toma la **mejor** nota registrada para esa métrica como progreso; es una limitación conocida (no distingue entre parciales).
 
 La clave sale del nombre de la materia: minúsculas, sin tildes, y todo lo que no sea letra o número pasa a un guion (sin guiones en los extremos). Ejemplos: `Mecánica de Fluidos` → `nota:mecanica-de-fluidos`, `Análisis Matemático II` → `nota:analisis-matematico-ii`. Una materia cuyo nombre no deja ninguna clave no manda notas. Si renombrás una materia, su clave cambia: sus notas se reenvían con la clave nueva en el siguiente guardado, pero una meta creada con la clave vieja deja de moverse y hay que crearla de nuevo con la clave nueva.
@@ -104,6 +108,8 @@ La clave sale del nombre de la materia: minúsculas, sin tildes, y todo lo que n
 ### Probar de punta a punta
 
 La prueba `PanelExtremoAExtremoManualTest` arma datos de ejemplo con las clases reales (carpeta temporal, nunca tus datos), los manda a un panel de verdad y verifica lo que quedó: estudio por materia y día, fechas, notas y progreso de la meta, que sincronizar de nuevo no duplica nada, el borrado de un ciclo y de un día entero, y el caso del panel caído. Solo corre si están definidas `PANEL_E2E_URL` y `PANEL_E2E_TOKEN`; con `mvn test` común se omite sola.
+
+La prueba **deja en el panel sus propios registros**, con ids y nombres únicos de cada corrida (no los borra: el sincronizador no borra si no queda nada para mandar), así que conviene correrla contra el panel de demostración descartable y no contra el panel de verdad. Solo borra la meta que crea.
 
 Levantar un panel de demostración (en el repo `Panel`; usa una base temporal en el puerto 8099 con token `demo`, y se detiene con Ctrl+C):
 
