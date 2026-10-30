@@ -47,7 +47,7 @@ public class Main {
             PanelSincronizador sincronizador = new PanelSincronizador(holder, estado, new DatosDeDataManager(),
                     Clock.systemDefaultZone());
             dm.setAlGuardar(sincronizador::sincronizarAsync);
-            frame.setPanel(holder, sincronizador, estado, carpeta);
+            frame.setPanel(holder, sincronizador, carpeta);
             frame.addWindowListener(new WindowAdapter() {
                 @Override
                 public void windowClosing(WindowEvent e) {

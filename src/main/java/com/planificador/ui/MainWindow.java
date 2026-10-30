@@ -1,6 +1,5 @@
 package com.planificador.ui;
 
-import com.planificador.panel.EstadoPanel;
 import com.planificador.panel.PanelSincronizador;
 import com.planificador.service.DataManager;
 import panel.cliente.PanelCompartido;
@@ -14,7 +13,6 @@ public class MainWindow extends JFrame {
     private JMenuItem conexionPanel;
     private PanelCompartido panelCompartido;
     private PanelSincronizador sincronizador;
-    private EstadoPanel estadoPanel;
     private Path carpetaDatos;
 
     public MainWindow() {
@@ -72,12 +70,11 @@ public class MainWindow extends JFrame {
     }
 
     /** Conecta la ventana con el panel y habilita Panel > Conexión con el panel. Sin esto el menú queda apagado. */
-    public void setPanel(PanelCompartido panel, PanelSincronizador sincronizador, EstadoPanel estado, Path carpeta) {
+    public void setPanel(PanelCompartido panel, PanelSincronizador sincronizador, Path carpeta) {
         this.panelCompartido = panel;
         this.sincronizador = sincronizador;
-        this.estadoPanel = estado;
         this.carpetaDatos = carpeta;
-        conexionPanel.setEnabled(panel != null && sincronizador != null && estado != null && carpeta != null);
+        conexionPanel.setEnabled(panel != null && sincronizador != null && carpeta != null);
     }
 
     public void refreshAllPanels() {
