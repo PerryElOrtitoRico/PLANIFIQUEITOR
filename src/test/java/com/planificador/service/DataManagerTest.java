@@ -211,4 +211,80 @@ class DataManagerTest {
         assertEquals(1, dm.getStudyLogs().size());
         assertEquals(30, dm.getStudyLogs().get(0).getMinutes());
     }
+
+    // ---- Gancho después de guardar ----
+
+    @Test
+    void alGuardarSeLlamaDespuesDeGuardar() throws IOException {
+        Path archivo = tmp.resolve("g1/planificador_datos.json");
+        DataManager dm = new DataManager(archivo, List.of());
+        java.util.concurrent.atomic.AtomicInteger llamadas = new java.util.concurrent.atomic.AtomicInteger();
+        java.util.concurrent.atomic.AtomicReference<String> visto = new java.util.concurrent.atomic.AtomicReference<>();
+        dm.setAlGuardar(() -> {
+            llamadas.incrementAndGet();
+            try {
+                visto.set(Files.readString(archivo, StandardCharsets.UTF_8));
+            } catch (IOException e) {
+                visto.set("error");
+            }
+        });
+
+        dm.addSubject(new Subject("m1", "Análisis", "#000000", "", ""));
+
+        assertEquals(1, llamadas.get());
+        assertTrue(visto.get().contains("Análisis"), "el oyente ve el archivo ya escrito");
+        dm.setAlGuardar(null);
+        dm.addSubject(new Subject("m2", "Física", "#000000", "", ""));
+        assertEquals(1, llamadas.get(), "con null no se llama más");
+    }
+
+    @Test
+    void alGuardarNoSeLlamaSiFallaElGuardado() throws IOException {
+        Path bloqueo = tmp.resolve("bloqueo");
+        Files.writeString(bloqueo, "soy un archivo, no una carpeta");
+        DataManager dm = new DataManager(bloqueo.resolve("planificador_datos.json"), List.of());
+        java.util.concurrent.atomic.AtomicInteger llamadas = new java.util.concurrent.atomic.AtomicInteger();
+        java.util.List<String> errores = new java.util.ArrayList<>();
+        dm.setSaveErrorListener(errores::add);
+        dm.setAlGuardar(llamadas::incrementAndGet);
+
+        java.io.PrintStream err = System.err;
+        System.setErr(new java.io.PrintStream(java.io.OutputStream.nullOutputStream())); // el stack trace esperado
+        try {
+            dm.addSubject(new Subject("m1", "Análisis", "#000000", "", ""));
+        } finally {
+            System.setErr(err);
+        }
+
+        assertEquals(0, llamadas.get());
+        assertEquals(1, errores.size(), "el aviso de error de guardado sigue funcionando");
+    }
+
+    @Test
+    void unaExcepcionDelOyenteNoRompeElGuardado() throws IOException {
+        Path archivo = tmp.resolve("g3/planificador_datos.json");
+        DataManager dm = new DataManager(archivo, List.of());
+        java.util.List<String> errores = new java.util.ArrayList<>();
+        dm.setSaveErrorListener(errores::add);
+        dm.setAlGuardar(() -> {
+            throw new IllegalStateException("oyente roto");
+        });
+
+        assertDoesNotThrow(() -> dm.addSubject(new Subject("m1", "Análisis", "#000000", "", "")));
+
+        assertTrue(Files.readString(archivo, StandardCharsets.UTF_8).contains("Análisis"));
+        assertTrue(errores.isEmpty());
+    }
+
+    @Test
+    void sinOyenteElGuardadoNoCambia() throws IOException {
+        Path archivo = tmp.resolve("g4/planificador_datos.json");
+        DataManager dm = new DataManager(archivo, List.of());
+
+        dm.addSubject(new Subject("m1", "Análisis", "#000000", "", ""));
+
+        assertTrue(Files.readString(archivo, StandardCharsets.UTF_8).contains("Análisis"));
+        assertEquals(List.of("planificador_datos.json"), Files.list(archivo.getParent())
+                .map(p -> p.getFileName().toString()).sorted().toList(), "sin temporales ni archivos extra");
+    }
 }
