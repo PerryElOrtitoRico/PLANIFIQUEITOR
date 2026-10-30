@@ -45,7 +45,6 @@ final class DialogoPanel extends JDialog {
     private final PanelCompartido panel;
     private final PanelSincronizador sincronizador;
     private final Path carpetaDatos;
-    private final String urlGuardadaAntes;
 
     private final JTextField url = new JTextField(32);
     private final JPasswordField token = new JPasswordField(32);
@@ -56,6 +55,8 @@ final class DialogoPanel extends JDialog {
     private final JButton reenviar = new JButton("Reenviar todo al panel");
     private final JButton guardar = new JButton("Guardar");
     private final JButton cancelar = new JButton("Cancelar");
+    private final JButton confirmar = new JButton("Confirmar borrados");
+    private final JLabel retenidosLinea = new JLabel(" ");
     private final JLabel estado = new JLabel(" ");
     private boolean ocupado;
 
@@ -64,7 +65,7 @@ final class DialogoPanel extends JDialog {
         this.panel = panel;
         this.sincronizador = sincronizador;
         this.carpetaDatos = carpetaDatos;
-        this.urlGuardadaAntes = prellenar();
+        prellenar();
 
         JPanel formulario = new JPanel(new GridBagLayout());
         formulario.setBorder(BorderFactory.createEmptyBorder(12, 12, 6, 12));
@@ -88,6 +89,7 @@ final class DialogoPanel extends JDialog {
         formulario.add(estado, campo);
 
         JPanel botones = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        botones.add(confirmar);
         botones.add(probar);
         botones.add(reenviar);
         botones.add(Box.createHorizontalStrut(12));
@@ -95,13 +97,20 @@ final class DialogoPanel extends JDialog {
         botones.add(cancelar);
 
         setLayout(new BorderLayout());
+        JPanel retenidosPanel = new JPanel(new BorderLayout());
+        retenidosPanel.setBorder(BorderFactory.createEmptyBorder(0, 15, 0, 12));
+        retenidosPanel.add(retenidosLinea, BorderLayout.CENTER);
+        JPanel abajo = new JPanel(new BorderLayout());
+        abajo.add(retenidosPanel, BorderLayout.NORTH);
+        abajo.add(botones, BorderLayout.SOUTH);
         add(formulario, BorderLayout.CENTER);
-        add(botones, BorderLayout.SOUTH);
+        add(abajo, BorderLayout.SOUTH);
 
         char ocultar = token.getEchoChar();
         mostrar.addActionListener(e -> token.setEchoChar(mostrar.isSelected() ? (char) 0 : ocultar));
         probar.addActionListener(e -> probarConexion());
         reenviar.addActionListener(e -> reenviarTodo());
+        confirmar.addActionListener(e -> confirmarBorrados());
         guardar.addActionListener(e -> guardarConfiguracion());
         cancelar.addActionListener(e -> dispose());
 
@@ -133,15 +142,14 @@ final class DialogoPanel extends JDialog {
         return c;
     }
 
-    /** Llena los campos con lo guardado; devuelve la dirección guardada. */
-    private String prellenar() {
+    /** Llena los campos con lo guardado. */
+    private void prellenar() {
         ConfigPanel cfg = ConfigPanel.cargar(carpetaDatos.resolve("panel-cliente.properties"));
         url.setText(cfg.url());
         token.setText(cfg.token());
         dispositivo.setText(cfg.dispositivo().isEmpty() ? nombreDeEstaPc() : cfg.dispositivo());
         boolean hayDatos = !cfg.url().isEmpty() && !cfg.token().isEmpty();
         enviar.setSelected(!hayDatos || cfg.activo());
-        return cfg.url();
     }
 
     private static String nombreDeEstaPc() {
@@ -179,6 +187,11 @@ final class DialogoPanel extends JDialog {
         guardar.setEnabled(!ocupado);
         cancelar.setEnabled(!ocupado);
         reenviar.setEnabled(!ocupado && guardadaActiva());
+        int retenidos = sincronizador.borradosRetenidos();
+        boolean hayRetenidos = retenidos > 0 && guardadaActiva();
+        confirmar.setVisible(hayRetenidos);
+        retenidosLinea.setText(hayRetenidos ? TextosPlanificador.borradosRetenidos(retenidos) : " ");
+        confirmar.setEnabled(!ocupado && hayRetenidos);
     }
 
     private void ocupado(boolean si, String texto) {
@@ -248,24 +261,64 @@ final class DialogoPanel extends JDialog {
         }.execute();
     }
 
+    private void confirmarBorrados() {
+        ConexionPanel conexion = panel.get();
+        if (conexion == null || !conexion.activo()) return;
+        // Los datos se copian acá, en el hilo de eventos, que es el que los modifica.
+        Instantanea foto = sincronizador.tomar();
+        ocupado(true, "Borrando…");
+        new SwingWorker<String, Void>() {
+            @Override
+            protected String doInBackground() {
+                Resumen resumen = sincronizador.confirmarBorrados(foto);
+                conexion.vaciarAhora();
+                return TextosPlanificador.borradosConfirmados(resumen, conexion.pendientes());
+            }
+
+            @Override
+            protected void done() {
+                ocupado(false, " ");
+                try {
+                    JOptionPane.showMessageDialog(DialogoPanel.this, get(), "Confirmar borrados",
+                            JOptionPane.INFORMATION_MESSAGE);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                } catch (ExecutionException | CancellationException e) {
+                    JOptionPane.showMessageDialog(DialogoPanel.this,
+                            TextosPlanificador.errorAlReenviar(e.getCause() != null ? e.getCause() : e), "Error",
+                            JOptionPane.ERROR_MESSAGE);
+                }
+            }
+        }.execute();
+    }
+
     private void guardarConfiguracion() {
         if (!validar()) return;
         String u = urlEscrita();
         String t = tokenEscrito();
         String d = dispositivoEscrito();
         boolean enviarAlPanel = enviar.isSelected();
-        boolean cambioLaDireccion = !u.equals(urlGuardadaAntes);
         ocupado(true, "Guardando…");
         new SwingWorker<Boolean, Void>() {
             @Override
             protected Boolean doInBackground() throws Exception {
-                ConexionPanel.guardarConfig(carpetaDatos, u, t, d, enviarAlPanel);
-                // Cierra la conexión vieja y recién después abre la nueva; si falla lo anterior, no se cambia nada.
-                panel.reabrir(() -> ConexionPanel.abrir(carpetaDatos));
+                // Sin ninguna corrida en vuelo: cierra la conexión vieja y recién después abre la nueva.
+                // Si guardar la configuración falla, no se cambia nada.
+                try {
+                    sincronizador.conConexionDetenida(() -> {
+                        try {
+                            ConexionPanel.guardarConfig(carpetaDatos, u, t, d, enviarAlPanel);
+                        } catch (java.io.IOException e) {
+                            throw new java.io.UncheckedIOException(e);
+                        }
+                        panel.reabrir(() -> ConexionPanel.abrir(carpetaDatos));
+                    });
+                } catch (java.io.UncheckedIOException e) {
+                    throw e.getCause();
+                }
                 ConexionPanel nueva = panel.get();
                 boolean activa = nueva != null && nueva.activo();
-                // Otro servidor no sabe nada de lo ya mandado: hay que volver a mandar todo.
-                if (activa && cambioLaDireccion) sincronizador.olvidarEstado();
+                // Si cambió el servidor, el archivo de estado lo sabe (recuerda su dirección) y lo reenvía solo.
                 return activa;
             }
 
