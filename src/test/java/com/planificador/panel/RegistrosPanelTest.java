@@ -199,8 +199,8 @@ class RegistrosPanelTest {
         List<Subject> materias = List.of(materia("m1", "Análisis"), materia("m2", "Física"));
         List<StudyLog> estudio = List.of(
                 ciclo("l1", "m1", "A", "2026-11-01", "09:00", 30),
-                ciclo("l2", "m1", "B", "2026-11-05", "09:00", 45),   // el mismo día cuenta
-                ciclo("l3", "m1", "C", "2026-11-06", "09:00", 60),   // después: no cuenta
+                ciclo("l2", "m1", "B", "2026-11-05", "09:00", 45),   // día del evento, pero posterior a hoy: no cuenta
+                ciclo("l3", "m1", "C", "2026-11-06", "09:00", 60),   // posterior a hoy y al evento: no cuenta
                 ciclo("l4", "m2", "D", "2026-11-02", "09:00", 99));  // otra materia
         ImportantDate parcial = new ImportantDate("d1", "Parcial 1", "m1", "2026-11-05", "parcial", "");
         // La fecha ya pasó: cuenta hasta el día del evento (2026-10-20) y no hasta hoy.
@@ -423,5 +423,174 @@ class RegistrosPanelTest {
                 "fec:d2", "fec:d1",
                 "nota:mb:parcial1", "nota:mb:parcial2", "nota:ma:parcial1"),
                 List.copyOf(r.keySet()));
+    }
+
+    // ---- Bordes ----
+
+    @Test
+    void minutosEstudiadosIncluyeElDiaDelEventoSiEsAnteriorAHoy() {
+        List<Subject> materias = List.of(materia("m1", "Análisis"));
+        List<StudyLog> estudio = List.of(
+                ciclo("l1", "m1", "A", "2026-10-19", "09:00", 10),
+                ciclo("l2", "m1", "B", "2026-10-20", "09:00", 20),
+                ciclo("l3", "m1", "C", "2026-10-21", "09:00", 40));
+        ImportantDate d = new ImportantDate("d1", "P", "m1", "2026-10-20", "parcial", "");
+
+        Registro e = construir(materias, estudio, List.of(d)).get("fec:d1");
+
+        assertEquals("{\"materia\":\"Análisis\",\"tipo\":\"parcial\",\"titulo\":\"P\",\"minutosEstudiados\":30}",
+                e.detalleJson());
+    }
+
+    @Test
+    void minutosEstudiadosIncluyeElDiaDeHoy() {
+        List<Subject> materias = List.of(materia("m1", "Análisis"));
+        List<StudyLog> estudio = List.of(
+                ciclo("l1", "m1", "A", "2026-10-30", "09:00", 20),
+                ciclo("l2", "m1", "B", "2026-10-31", "09:00", 40));
+        ImportantDate d = new ImportantDate("d1", "P", "m1", "2026-12-01", "parcial", "");
+
+        Registro e = construir(materias, estudio, List.of(d)).get("fec:d1");
+
+        assertEquals("{\"materia\":\"Análisis\",\"tipo\":\"parcial\",\"titulo\":\"P\",\"minutosEstudiados\":20}",
+                e.detalleJson());
+    }
+
+    @Test
+    void fechasNoIsoSeOmiten() {
+        Subject s = conNotas("m1", "Análisis", 6,
+                new Evaluation("e1", "parcial", 1, false, 7, "2026-2-3"),
+                new Evaluation("e2", "parcial", 2, false, 7, "2026-10-28T10:00:00"));
+        Function<String, String> recordada = id -> "2026-10-28T10:00:00";
+        List<StudyLog> estudio = List.of(
+                ciclo("l1", "m1", "A", "2026-2-3", "09:00", 25),
+                ciclo("l2", "m1", "B", "2026-10-28T10:00:00", "09:00", 25));
+        List<ImportantDate> fechas = List.of(
+                new ImportantDate("d1", "A", "m1", "2026-2-3", "parcial", ""),
+                new ImportantDate("d2", "B", "m1", "2026-10-28T10:00:00", "parcial", ""));
+
+        Map<String, Registro> r = RegistrosPanel.construir(List.of(s), estudio, fechas, HOY, "pc", recordada);
+
+        assertTrue(r.isEmpty());
+    }
+
+    @Test
+    void hoyNuloNoLanzaYElEventoCuentaHastaSuPropiaFecha() {
+        List<Subject> materias = List.of(materia("m1", "Análisis"));
+        List<StudyLog> estudio = List.of(
+                ciclo("l1", "m1", "A", "2026-12-01", "09:00", 20),
+                ciclo("l2", "m1", "B", "2026-12-02", "09:00", 40));
+        ImportantDate d = new ImportantDate("d1", "P", "m1", "2026-12-01", "parcial", "");
+
+        Map<String, Registro> r = RegistrosPanel.construir(materias, estudio, List.of(d), null, "pc", SIN_RECORDATORIO);
+
+        // Sin "hoy" no hay tope por hoy: cuenta hasta la fecha del evento.
+        assertEquals("{\"materia\":\"Análisis\",\"tipo\":\"parcial\",\"titulo\":\"P\",\"minutosEstudiados\":20}",
+                r.get("fec:d1").detalleJson());
+    }
+
+    @Test
+    void idDeMateriaConDosPuntosNoMezclaGrupos() {
+        List<Subject> materias = List.of(materia("a", "Alfa"), materia("a:2026", "Beta"));
+        List<StudyLog> estudio = List.of(
+                ciclo("l1", "a", "x", "2026-10-28", "09:00", 10),
+                ciclo("l2", "a:2026", "y", "2026-10-28", "09:00", 20),
+                ciclo("l3", "a:2026", "z", "2026-10-29", "09:00", 30));
+
+        Map<String, Registro> r = soloEstudio(materias, estudio);
+
+        assertEquals(List.of("est:a:2026-10-28", "est:a:2026:2026-10-28", "est:a:2026:2026-10-29"),
+                List.copyOf(r.keySet()));
+        assertEquals(10, r.get("est:a:2026-10-28").duracionMin());
+        assertEquals("Alfa · x", r.get("est:a:2026-10-28").resumen());
+        assertEquals(20, r.get("est:a:2026:2026-10-28").duracionMin());
+        assertEquals("Beta · y", r.get("est:a:2026:2026-10-28").resumen());
+        assertEquals(30, r.get("est:a:2026:2026-10-29").duracionMin());
+    }
+
+    @Test
+    void variosRecuperatoriosGanaElUltimo() {
+        Subject s = conNotas("m1", "Análisis", 6,
+                new Evaluation("e1", "parcial", 1, false, 9, "2026-09-10"),
+                new Evaluation("e2", "parcial", 1, true, 3, "2026-09-20"),
+                new Evaluation("e3", "parcial", 1, true, 5, "2026-09-30"));
+
+        Registro n = soloNotas(s).get("nota:m1:parcial1");
+
+        assertEquals(5.0, n.valor());
+        assertEquals("2026-09-30", n.fecha());
+        assertEquals("Parcial 1 (recuperatorio) · Análisis: 5", n.resumen());
+    }
+
+    @Test
+    void variosNormalesSinRecuperatorioGanaElUltimo() {
+        Subject s = conNotas("m1", "Análisis", 6,
+                new Evaluation("e1", "parcial", 1, false, 9, "2026-09-10"),
+                new Evaluation("e2", "parcial", 1, false, 4, "2026-09-20"));
+
+        Registro n = soloNotas(s).get("nota:m1:parcial1");
+
+        assertEquals(4.0, n.valor());
+        assertEquals("2026-09-20", n.fecha());
+        assertEquals("Parcial 1 · Análisis: 4", n.resumen());
+    }
+
+    @Test
+    void formatoDeNotas() {
+        Subject s = conNotas("m1", "Análisis", 6,
+                new Evaluation("e0", "parcial", 1, false, 0, "2026-09-01"),
+                new Evaluation("e1", "parcial", 2, false, 10, "2026-09-01"),
+                new Evaluation("e2", "parcial", 3, false, 7, "2026-09-01"),
+                new Evaluation("e3", "parcial", 4, false, 6.5, "2026-09-01"),
+                new Evaluation("e4", "parcial", 5, false, 6.75, "2026-09-01"));
+
+        Map<String, Registro> r = soloNotas(s);
+
+        assertEquals("Parcial 1 · Análisis: 0", r.get("nota:m1:parcial1").resumen());
+        assertEquals("Parcial 2 · Análisis: 10", r.get("nota:m1:parcial2").resumen());
+        assertEquals("Parcial 3 · Análisis: 7", r.get("nota:m1:parcial3").resumen());
+        assertEquals("Parcial 4 · Análisis: 6,5", r.get("nota:m1:parcial4").resumen());
+        assertEquals("Parcial 5 · Análisis: 6,75", r.get("nota:m1:parcial5").resumen());
+        assertEquals(0.0, r.get("nota:m1:parcial1").valor());
+        assertEquals(10.0, r.get("nota:m1:parcial2").valor());
+        assertEquals(7.0, r.get("nota:m1:parcial3").valor());
+        assertEquals(6.5, r.get("nota:m1:parcial4").valor());
+        assertEquals(6.75, r.get("nota:m1:parcial5").valor());
+        assertEquals("{\"materia\":\"Análisis\",\"numero\":1,\"recuperatorio\":false,\"notaAprobacion\":6}",
+                r.get("nota:m1:parcial1").detalleJson());
+
+        Subject d = conNotas("m2", "Física", 5.5, new Evaluation("e5", "parcial", 1, false, 8, "2026-09-01"));
+        assertEquals("{\"materia\":\"Física\",\"numero\":1,\"recuperatorio\":false,\"notaAprobacion\":5.5}",
+                soloNotas(d).get("nota:m2:parcial1").detalleJson());
+    }
+
+    @Test
+    void unaFuncionDeFechaQueLanzaSoloOmiteEsaNota() {
+        Subject s = conNotas("m1", "Análisis", 6,
+                new Evaluation("e1", "parcial", 1, false, 7, null),
+                new Evaluation("e2", "parcial", 2, false, 8, "2026-10-15"));
+        Function<String, String> lanza = id -> {
+            throw new IllegalStateException("falla");
+        };
+
+        Map<String, Registro> r = RegistrosPanel.construir(List.of(s),
+                List.of(ciclo("l1", "m1", "A", "2026-10-28", "09:00", 25)),
+                List.of(new ImportantDate("d1", "P", "m1", "2026-11-05", "parcial", "")), HOY, "pc", lanza);
+
+        assertEquals(List.of("est:m1:2026-10-28", "fec:d1", "nota:m1:parcial2"), List.copyOf(r.keySet()));
+    }
+
+    @Test
+    void elJsonNoEscapaCaracteresHtml() {
+        Subject s = conNotas("m1", "Mecánica & Fluidos <1>", 6,
+                new Evaluation("e1", "parcial", 1, false, 7, "2026-10-15"));
+        Map<String, Registro> r = construir(List.of(s),
+                List.of(ciclo("l1", "m1", "A", "2026-10-28", "09:00", 25)),
+                List.of(new ImportantDate("d1", "P", "m1", "2026-11-05", "parcial", "")));
+
+        assertEquals("{\"materia\":\"Mecánica & Fluidos <1>\",\"temas\":[\"A\"],\"ciclos\":1}",
+                r.get("est:m1:2026-10-28").detalleJson());
+        assertTrue(r.get("fec:d1").detalleJson().startsWith("{\"materia\":\"Mecánica & Fluidos <1>\""));
+        assertTrue(r.get("nota:m1:parcial1").detalleJson().startsWith("{\"materia\":\"Mecánica & Fluidos <1>\""));
     }
 }
