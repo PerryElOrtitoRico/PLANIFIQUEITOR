@@ -946,4 +946,279 @@ class PanelSincronizadorTest {
         assertTrue(otra.fechasNuevas().isEmpty());
         assertEquals(Map.of("nota:m1:parcial1", "2026-10-30"), estado.cargar().fechasNotas());
     }
+
+    // ---- borrados masivos retenidos ----
+
+    private void fechas20() {
+        for (int i = 0; i < 20; i++) {
+            datos.fechas.add(new ImportantDate("f" + i, "Fecha " + i, "m1", "2026-12-" + String.format("%02d", i + 1),
+                    "parcial", ""));
+        }
+    }
+
+    private void dejarSolo(int cuantas) {
+        datos.fechas.subList(cuantas, datos.fechas.size()).clear();
+    }
+
+    @Test
+    void borradosMasivosSeRetienen() throws Exception {
+        fechas20();
+        sync(new Resumen(true, 20, 0, 0));
+        dejarSolo(5);
+
+        Resumen r = sincronizador.sincronizar();
+
+        assertEquals(new Resumen(true, 0, 0, 0, 15), r);
+        assertEquals(15, sincronizador.borradosRetenidos());
+        assertTrue(recibidos(0).isEmpty());
+        assertEquals(20, estado.cargar().registros().values().stream().filter(x -> !x.borrado()).count());
+    }
+
+    @Test
+    void bajoElUmbralSePublican() throws Exception {
+        fechas20();
+        sync(new Resumen(true, 20, 0, 0));
+        dejarSolo(11); // 9 borrados: menos de 10 y de la mitad
+
+        Resumen r = sincronizador.sincronizar();
+
+        assertEquals(new Resumen(true, 0, 0, 9, 0), r);
+        assertEquals(0, sincronizador.borradosRetenidos());
+        assertEquals(9, recibidos(9).size());
+    }
+
+    @Test
+    void lasNuevasYLasCambiadasSalenAunqueSeRetenganBorrados() throws Exception {
+        fechas20();
+        sync(new Resumen(true, 20, 0, 0));
+        dejarSolo(5);
+        datos.fechas.add(new ImportantDate("nueva", "Nueva", "m1", "2026-12-30", "final", ""));
+
+        Resumen r = sincronizador.sincronizar();
+
+        assertEquals(new Resumen(true, 1, 0, 0, 15), r);
+        assertEquals(1, recibidos(1).size());
+    }
+
+    @Test
+    void confirmarBorradosLosPublica() throws Exception {
+        fechas20();
+        sync(new Resumen(true, 20, 0, 0));
+        dejarSolo(5);
+        assertEquals(15, sincronizador.sincronizar().retenidos());
+
+        Resumen r = sincronizador.confirmarBorrados(sincronizador.tomar());
+
+        assertEquals(new Resumen(true, 0, 0, 15, 0), r);
+        assertEquals(0, sincronizador.borradosRetenidos());
+        assertEquals(15, recibidos(15).size());
+    }
+
+    @Test
+    void confirmarBorradosRespetaLasOtrasGuardas() throws Exception {
+        fechas20();
+        sync(new Resumen(true, 20, 0, 0));
+        dejarSolo(5);
+        datos.confiable = false;
+        assertEquals(0, sincronizador.confirmarBorrados(sincronizador.tomar()).borrados());
+        datos.confiable = true;
+        datos.fechas.clear();
+        assertEquals(0, sincronizador.confirmarBorrados(sincronizador.tomar()).borrados());
+
+        assertTrue(recibidos(0).isEmpty());
+        assertEquals(20, estado.cargar().registros().values().stream().filter(x -> !x.borrado()).count());
+    }
+
+    @Test
+    void losRetenidosSeVuelvenAIntentarEnLaSiguientePasada() throws Exception {
+        fechas20();
+        sync(new Resumen(true, 20, 0, 0));
+        dejarSolo(5);
+
+        assertEquals(15, sincronizador.sincronizar().retenidos());
+        assertEquals(15, sincronizador.sincronizar().retenidos());
+        assertEquals(15, sincronizador.borradosRetenidos());
+        assertTrue(recibidos(0).isEmpty());
+        datos.fechas.clear();
+        fechas20(); // vuelven todas: ya no hay nada que retener
+        assertEquals(new Resumen(true, 0, 0, 0, 0), sincronizador.sincronizar());
+        assertEquals(0, sincronizador.borradosRetenidos());
+    }
+
+    // ---- dirección del servidor ----
+
+    private String direccionActual() {
+        return "http://127.0.0.1:" + servidor.getAddress().getPort();
+    }
+
+    @Test
+    void elEstadoGuardaLaDireccion() throws Exception {
+        llenarBasico();
+        sync(new Resumen(true, 1, 0, 0));
+
+        assertEquals(direccionActual(), estado.cargar().direccion());
+    }
+
+    @Test
+    void cambioDeDireccionReenviaTodo() throws Exception {
+        llenarBasico();
+        ancla();
+        sync(new Resumen(true, 2, 0, 0));
+        EstadoPanel.Estado e = estado.cargar();
+        estado.guardar(new EstadoPanel.Estado(e.registros(), e.fechasNotas(), "http://otro-servidor:1234"));
+
+        Map<String, Registro> reenviados = sync(new Resumen(true, 2, 0, 0));
+
+        assertEquals(2, reenviados.size());
+        assertEquals(direccionActual(), estado.cargar().direccion());
+    }
+
+    @Test
+    void cambioDeDireccionDescartaLasMarcasDeBorrado() throws Exception {
+        llenarBasico();
+        ancla();
+        sync(new Resumen(true, 2, 0, 0));
+        datos.estudio.clear();
+        sync(new Resumen(true, 0, 0, 1));
+        EstadoPanel.Estado e = estado.cargar();
+        estado.guardar(new EstadoPanel.Estado(e.registros(), e.fechasNotas(), "http://otro-servidor:1234"));
+
+        sync(new Resumen(true, 1, 0, 0)); // solo la fecha ancla; el estudio borrado no se reenvía
+
+        assertTrue(estado.cargar().registros().values().stream().noneMatch(Registro::borrado));
+    }
+
+    @Test
+    void estadoSinDireccionAdoptaLaActualSinBorrar() throws Exception {
+        llenarBasico();
+        sync(new Resumen(true, 1, 0, 0));
+        EstadoPanel.Estado e = estado.cargar();
+        estado.guardar(new EstadoPanel.Estado(e.registros(), e.fechasNotas(), null));
+
+        sync(new Resumen(true, 0, 0, 0));
+
+        assertEquals(direccionActual(), estado.cargar().direccion());
+    }
+
+    @Test
+    void mismaDireccionConBarraFinalNoReenvia() throws Exception {
+        llenarBasico();
+        sync(new Resumen(true, 1, 0, 0));
+        EstadoPanel.Estado e = estado.cargar();
+        estado.guardar(new EstadoPanel.Estado(e.registros(), e.fechasNotas(),
+                direccionActual().replace("http", "HTTP") + "/"));
+
+        sync(new Resumen(true, 0, 0, 0));
+    }
+
+    @Test
+    void activarEnLaMismaDireccionTrasUnCambioInactivoReenvia() throws Exception {
+        llenarBasico();
+        sync(new Resumen(true, 1, 0, 0));
+        String a = direccionActual();
+        // se guarda B con "Enviar" apagado: nada corre, el estado sigue diciendo A
+        ConexionPanel.guardarConfig(carpeta, a + "/b", "token-de-prueba-123", "pc", false);
+        panel.reabrir(() -> ConexionPanel.abrir(carpeta));
+        assertEquals(new Resumen(false, 0, 0, 0), sincronizador.sincronizar());
+        assertEquals(a, estado.cargar().direccion());
+        // se vuelve a activar, ahora en B
+        ConexionPanel.guardarConfig(carpeta, a + "/b", "token-de-prueba-123", "pc", true);
+        panel.reabrir(() -> ConexionPanel.abrir(carpeta));
+
+        Resumen r = sincronizador.sincronizar();
+
+        assertEquals(new Resumen(true, 1, 0, 0), r);
+        assertEquals(a + "/b", estado.cargar().direccion());
+    }
+
+    // ---- la conexión no cambia en medio de una corrida ----
+
+    @Test
+    void reabrirEsperaALaCorridaEnCurso() throws Exception {
+        RelojQueBloquea r = new RelojQueBloquea();
+        PanelSincronizador s = conRelojQueBloquea(r);
+        r.entro = new CountDownLatch(1);
+        r.suelta = new CountDownLatch(1);
+        s.sincronizarAsync();
+        assertTrue(r.entro.await(5, TimeUnit.SECONDS));
+        java.util.concurrent.atomic.AtomicBoolean cambio = new java.util.concurrent.atomic.AtomicBoolean();
+
+        Thread t = new Thread(() -> s.conConexionDetenida(() -> cambio.set(true)));
+        t.start();
+        Thread.sleep(150);
+        assertFalse(cambio.get(), "el cambio espera a que termine la corrida");
+        r.suelta.countDown();
+        t.join(5000);
+
+        assertTrue(cambio.get());
+    }
+
+    @Test
+    void unaCorridaPosteriorUsaLaConexionNueva() throws Exception {
+        llenarBasico();
+        sincronizador.conConexionDetenida(() -> {
+            try {
+                ConexionPanel.guardarConfig(carpeta, direccionActual(), "token-de-prueba-123", "otra-pc", true);
+            } catch (IOException e) {
+                throw new java.io.UncheckedIOException(e);
+            }
+            panel.reabrir(() -> ConexionPanel.abrir(carpeta));
+        });
+
+        assertEquals(new Resumen(true, 1, 0, 0), sincronizador.sincronizar());
+        panel.get().vaciarAhora(); // la conexión nueva, no la vieja del campo
+        esperar(() -> !cuerpos.isEmpty());
+
+        assertFalse(cuerpos.isEmpty());
+        for (String b : cuerpos) assertEquals("otra-pc", GSON.fromJson(b, Registro.class).dispositivo());
+    }
+
+    // ---- instantáneas viejas ----
+
+    @Test
+    void unaInstantaneaViejaSeIgnora() throws Exception {
+        llenarBasico();
+        ancla();
+        sync(new Resumen(true, 2, 0, 0));
+        List<StudyLog> original = new ArrayList<>(datos.estudio);
+        datos.estudio.clear();
+        PanelSincronizador.Instantanea s1 = sincronizador.tomar(); // sin estudio
+        datos.estudio.addAll(original);
+        datos.estudio.add(ciclo("l3", "Integrales", "2026-10-29", 15));
+        PanelSincronizador.Instantanea s2 = sincronizador.tomar();
+
+        assertEquals(new Resumen(true, 0, 1, 0), sincronizador.aplicar(s2));
+        assertEquals(new Resumen(true, 0, 0, 0), sincronizador.aplicar(s1));
+
+        assertTrue(estado.cargar().registros().values().stream().noneMatch(Registro::borrado));
+        assertEquals(65, estado.cargar().registros().get("est:m1:2026-10-29").duracionMin());
+    }
+
+    @Test
+    void lasInstantaneasEnOrdenSeAplican() throws Exception {
+        llenarBasico();
+        ancla();
+        sync(new Resumen(true, 2, 0, 0));
+        datos.estudio.clear();
+        PanelSincronizador.Instantanea s1 = sincronizador.tomar();
+        datos.estudio.add(ciclo("l3", "Integrales", "2026-10-29", 15));
+        PanelSincronizador.Instantanea s2 = sincronizador.tomar();
+
+        assertEquals(new Resumen(true, 0, 0, 1), sincronizador.aplicar(s1));
+        assertEquals(new Resumen(true, 1, 0, 0), sincronizador.aplicar(s2));
+    }
+
+    @Test
+    void noSePodanLasFechasConDatosNoConfiables() throws Exception {
+        datos.materias.set(0, conNota("m1", "Análisis", null));
+        ancla();
+        sync(new Resumen(true, 2, 0, 0));
+        assertEquals(Map.of("nota:m1:parcial1", "2026-10-30"), estado.cargar().fechasNotas());
+        datos.materias.get(0).getCourse().getEvaluations().clear();
+        datos.confiable = false;
+
+        sincronizador.sincronizar();
+
+        assertEquals(Map.of("nota:m1:parcial1", "2026-10-30"), estado.cargar().fechasNotas());
+    }
 }

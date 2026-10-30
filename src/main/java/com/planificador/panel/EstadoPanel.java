@@ -27,16 +27,37 @@ public final class EstadoPanel {
     private static final String NOMBRE = "panel-estado.json";
     private static final Gson GSON = new GsonBuilder().disableHtmlEscaping().create();
 
-    public record Estado(Map<String, Registro> registros, Map<String, String> fechasNotas) {
-        public static Estado vacio() {
-            return new Estado(new LinkedHashMap<>(), new LinkedHashMap<>());
+    /**
+     * {@code direccion}: el servidor al que pertenece lo mandado (normalizada), o null en archivos anteriores a
+     * este campo.
+     */
+    public record Estado(Map<String, Registro> registros, Map<String, String> fechasNotas, String direccion) {
+        public Estado(Map<String, Registro> registros, Map<String, String> fechasNotas) {
+            this(registros, fechasNotas, null);
         }
+
+        public static Estado vacio() {
+            return new Estado(new LinkedHashMap<>(), new LinkedHashMap<>(), null);
+        }
+    }
+
+    /** Sin espacios ni barras finales, con esquema y servidor en minúsculas; null o vacío dan "". */
+    public static String normalizar(String direccion) {
+        if (direccion == null) return "";
+        String d = direccion.trim();
+        while (d.endsWith("/")) d = d.substring(0, d.length() - 1);
+        int esquema = d.indexOf("://");
+        if (esquema < 0) return d.toLowerCase(java.util.Locale.ROOT);
+        int resto = d.indexOf('/', esquema + 3);
+        String cabeza = resto < 0 ? d : d.substring(0, resto);
+        return cabeza.toLowerCase(java.util.Locale.ROOT) + (resto < 0 ? "" : d.substring(resto));
     }
 
     /** Forma del archivo en disco. */
     private static final class Archivo {
         Map<String, Registro> registros;
         Map<String, String> fechasNotas;
+        String direccion;
     }
 
     private final Path archivo;
@@ -79,7 +100,7 @@ public final class EstadoPanel {
                     if (id != null && f != null) fechas.put(id, f);
                 });
             }
-            return new Estado(registros, fechas);
+            return new Estado(registros, fechas, a.direccion == null || a.direccion.isBlank() ? null : a.direccion);
         } catch (IOException | RuntimeException e) {
             LOG.log(Level.WARNING, "No se pudo leer el estado del panel ({0}); se vuelve a mandar todo.",
                     e.getClass().getSimpleName());
@@ -96,6 +117,7 @@ public final class EstadoPanel {
             Archivo a = new Archivo();
             a.registros = estado.registros();
             a.fechasNotas = estado.fechasNotas();
+            a.direccion = estado.direccion();
             tmp = Files.createTempFile(carpeta, "panel-estado", ".tmp");
             try (Writer w = Files.newBufferedWriter(tmp, StandardCharsets.UTF_8)) {
                 GSON.toJson(a, w);
@@ -122,6 +144,6 @@ public final class EstadoPanel {
     /** Olvida lo mandado (para "Reenviar todo") pero conserva las fechas recordadas de las notas. */
     public void vaciar() {
         Estado actual = cargar();
-        guardar(new Estado(new LinkedHashMap<>(), actual.fechasNotas()));
+        guardar(new Estado(new LinkedHashMap<>(), actual.fechasNotas(), actual.direccion()));
     }
 }
