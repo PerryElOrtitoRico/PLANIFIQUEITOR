@@ -63,9 +63,15 @@ public final class EstadoPanel {
             if (a == null) return Estado.vacio();
             Map<String, Registro> registros = new LinkedHashMap<>();
             if (a.registros != null) {
-                a.registros.forEach((id, reg) -> {
-                    if (id != null && reg != null) registros.put(id, reg);
-                });
+                for (Map.Entry<String, Registro> e : a.registros.entrySet()) {
+                    Registro reg = e.getValue();
+                    // Una entrada sin id, o con un id distinto de su clave, es basura: todo el archivo es dudoso.
+                    if (e.getKey() == null || reg == null || !e.getKey().equals(reg.idEnFuente())) {
+                        LOG.warning("El estado del panel tiene entradas inválidas; se vuelve a mandar todo.");
+                        return Estado.vacio();
+                    }
+                    registros.put(e.getKey(), reg);
+                }
             }
             Map<String, String> fechas = new LinkedHashMap<>();
             if (a.fechasNotas != null) {

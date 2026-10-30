@@ -593,4 +593,48 @@ class RegistrosPanelTest {
         assertTrue(r.get("fec:d1").detalleJson().startsWith("{\"materia\":\"Mecánica & Fluidos <1>\""));
         assertTrue(r.get("nota:m1:parcial1").detalleJson().startsWith("{\"materia\":\"Mecánica & Fluidos <1>\""));
     }
+
+    // ---- completo ----
+
+    @Test
+    void completoEsVerdaderoConDatosNormalesEInvalidos() {
+        List<StudyLog> estudio = new ArrayList<>();
+        estudio.add(ciclo("l1", "m1", "A", "2026-10-28", "09:00", 25));
+        estudio.add(ciclo("l2", "m1", "B", "no es fecha", "09:00", 25)); // inválido: se omite sin falla
+        estudio.add(null);
+        RegistrosPanel.Resultado r = RegistrosPanel.construirConEstado(List.of(materia("m1", "Análisis")), estudio,
+                List.of(new ImportantDate("d1", "A", "m1", null, "parcial", "")), HOY, "pc", SIN_RECORDATORIO);
+        assertTrue(r.completo());
+        assertEquals(1, r.registros().size());
+        assertEquals(RegistrosPanel.construir(List.of(materia("m1", "Análisis")), estudio, List.of(), HOY, "pc",
+                SIN_RECORDATORIO), r.registros());
+    }
+
+    @Test
+    void completoEsFalsoSiUnCicloLanzaUnaExcepcionInesperada() {
+        StudyLog roto = new StudyLog("l9", "m1", null, "X", "2026-10-28", "09:00", 10) {
+            @Override
+            public int getMinutes() {
+                throw new IllegalStateException("roto");
+            }
+        };
+        RegistrosPanel.Resultado r = RegistrosPanel.construirConEstado(List.of(materia("m1", "Análisis")),
+                List.of(ciclo("l1", "m1", "A", "2026-10-28", "09:00", 25), roto), List.of(), HOY, "pc",
+                SIN_RECORDATORIO);
+        assertFalse(r.completo());
+        assertEquals(1, r.registros().size(), "lo demás se arma igual");
+    }
+
+    @Test
+    void completoEsFalsoSiFallaLaIteracionDeUnaLista() {
+        List<StudyLog> mala = new ArrayList<>() {
+            @Override
+            public java.util.Iterator<StudyLog> iterator() {
+                throw new IllegalStateException("roto");
+            }
+        };
+        RegistrosPanel.Resultado r = RegistrosPanel.construirConEstado(List.of(materia("m1", "Análisis")), mala,
+                List.of(), HOY, "pc", SIN_RECORDATORIO);
+        assertFalse(r.completo());
+    }
 }

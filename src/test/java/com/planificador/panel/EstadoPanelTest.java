@@ -85,12 +85,12 @@ class EstadoPanelTest {
         Path carpeta = tmp.resolve("datos");
         EstadoPanel estado = new EstadoPanel(carpeta.resolve("panel-estado.json"));
         estado.guardar(new Estado(Map.of("fec:f1", conNulos()), Map.of()));
-        estado.guardar(new Estado(Map.of("fec:f2", conNulos()), Map.of()));
+        estado.guardar(new Estado(Map.of("fec:f1", conNulos()), Map.of("nota:m1:parcial1", "2026-10-30")));
 
         try (var lista = Files.list(carpeta)) {
             assertEquals(List.of("panel-estado.json"), lista.map(p -> p.getFileName().toString()).toList());
         }
-        assertEquals(List.of("fec:f2"), List.copyOf(estado.cargar().registros().keySet()));
+        assertEquals(Map.of("nota:m1:parcial1", "2026-10-30"), estado.cargar().fechasNotas());
     }
 
     @Test
@@ -117,5 +117,30 @@ class EstadoPanelTest {
         Files.writeString(archivo, "x");
         new EstadoPanel(archivo.resolve("panel-estado.json")).guardar(Estado.vacio());
         assertFalse(Files.isDirectory(archivo));
+    }
+
+    @Test
+    void entradaConIdQueNoCoincideEsDanado() throws IOException {
+        Path f = tmp.resolve("panel-estado.json");
+        Registro r = conNulos(); // idEnFuente = fec:f1
+        String json = new com.google.gson.Gson().toJson(Map.of("registros", Map.of("otro", r),
+                "fechasNotas", Map.of("nota:m1:parcial1", "2026-10-30")));
+        Files.writeString(f, json);
+
+        Estado e = new EstadoPanel(f).cargar();
+
+        assertTrue(e.registros().isEmpty());
+        assertTrue(e.fechasNotas().isEmpty(), "todo el archivo se trata como dañado");
+    }
+
+    @Test
+    void entradaSinIdEsDanado() throws IOException {
+        Path f = tmp.resolve("panel-estado.json");
+        Files.writeString(f, "{\"registros\":{\"a\":{}}}");
+
+        Estado e = new EstadoPanel(f).cargar();
+
+        assertTrue(e.registros().isEmpty());
+        assertTrue(e.fechasNotas().isEmpty());
     }
 }

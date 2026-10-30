@@ -24,6 +24,8 @@ public final class PanelSincronizador {
     public record Resumen(boolean panelActivo, int nuevos, int cambiados, int borrados) {
     }
 
+    private static final long RETENCION_MARCAS_MS = 30L * 24 * 60 * 60 * 1000;
+
     private final PanelCompartido panel;
     private final EstadoPanel estado;
     private final DatosPlanificador datos;
@@ -47,32 +49,45 @@ public final class PanelSincronizador {
             Estado previo = estado.cargar();
             Map<String, String> fechas = new LinkedHashMap<>(previo.fechasNotas());
             LocalDate hoy = LocalDate.now(reloj);
-            Map<String, Registro> deseado = RegistrosPanel.construir(datos.materias(), datos.estudio(),
+            RegistrosPanel.Resultado armado = RegistrosPanel.construirConEstado(datos.materias(), datos.estudio(),
                     datos.fechas(), hoy, conexion.dispositivo(),
                     id -> fechas.computeIfAbsent(id, k -> hoy.toString()));
+            Map<String, Registro> deseado = armado.registros();
+            // Solo se borra del panel con datos de fiar y completos: si no, lo que falta puede ser un error nuestro.
+            boolean sinMarcas = !datos.confiable() || !armado.completo()
+                    || (deseado.isEmpty() && previo.registros().values().stream().anyMatch(r -> !r.borrado()));
 
             Map<String, Registro> nuevo = new LinkedHashMap<>(previo.registros());
+            int omitidos = 0;
             try {
                 for (Map.Entry<String, Registro> e : deseado.entrySet()) {
                     String id = e.getKey();
                     Registro quiere = e.getValue();
                     Registro enviado = previo.registros().get(id);
-                    if (enviado != null && iguales(enviado, quiere)) continue;
+                    boolean vivo = enviado != null && !enviado.borrado();
+                    if (vivo && iguales(enviado, quiere)) continue;
                     Registro aEnviar = copia(quiere, conexion.dispositivo(), siguiente(enviado), false);
                     conexion.publicar(aEnviar);
                     nuevo.put(id, aEnviar);
-                    if (enviado == null) nuevos++;
-                    else cambiados++;
+                    if (vivo) cambiados++;
+                    else nuevos++;
                 }
                 for (Map.Entry<String, Registro> e : previo.registros().entrySet()) {
-                    if (deseado.containsKey(e.getKey())) continue;
+                    if (deseado.containsKey(e.getKey()) || e.getValue().borrado()) continue;
+                    if (sinMarcas) {
+                        omitidos++;
+                        continue;
+                    }
                     Registro lapida = copia(e.getValue(), e.getValue().dispositivo(), siguiente(e.getValue()), true);
                     conexion.publicar(lapida);
-                    nuevo.remove(e.getKey());
+                    nuevo.put(e.getKey(), lapida); // se recuerda: si el id vuelve, su marca de tiempo debe superarla
                     borrados++;
                 }
             } finally {
+                if (omitidos > 0) LOG.log(Level.WARNING, "borrados omitidos: {0}", omitidos);
                 // Lo ya publicado queda anotado aunque algo falle a mitad de camino.
+                long limite = reloj.millis() - RETENCION_MARCAS_MS;
+                nuevo.values().removeIf(r -> r.borrado() && r.actualizadoEn() < limite);
                 Map<String, String> guardadas = new LinkedHashMap<>();
                 fechas.forEach((id, f) -> {
                     if (deseado.containsKey(id)) guardadas.put(id, f);

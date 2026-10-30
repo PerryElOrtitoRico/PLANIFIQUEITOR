@@ -25,4 +25,9 @@ public final class DatosDeDataManager implements DatosPlanificador {
     public List<ImportantDate> fechas() {
         return new ArrayList<>(DataManager.getInstance().getImportantDates());
     }
+
+    @Override
+    public boolean confiable() {
+        return DataManager.getInstance().getLoadWarning() == null;
+    }
 }

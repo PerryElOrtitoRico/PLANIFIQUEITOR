@@ -47,17 +47,37 @@ public final class RegistrosPanel {
     public static Map<String, Registro> construir(List<Subject> materias, List<StudyLog> estudio,
                                                   List<ImportantDate> fechas, LocalDate hoy, String dispositivo,
                                                   Function<String, String> fechaDeNotaSinFecha) {
+        return construirConEstado(materias, estudio, fechas, hoy, dispositivo, fechaDeNotaSinFecha).registros();
+    }
+
+    /** Lo armado y si se pudo armar todo ({@code completo = false} si algo falló de forma inesperada). */
+    public record Resultado(Map<String, Registro> registros, boolean completo) {
+    }
+
+    private static final class Marca {
+        boolean incompleto;
+    }
+
+    /**
+     * Igual que {@link #construir}, pero avisa si quedó algo sin armar por una falla inesperada
+     * (omitir datos inválidos no cuenta como incompleto).
+     */
+    public static Resultado construirConEstado(List<Subject> materias, List<StudyLog> estudio,
+                                               List<ImportantDate> fechas, LocalDate hoy, String dispositivo,
+                                               Function<String, String> fechaDeNotaSinFecha) {
         Map<String, Registro> salida = new LinkedHashMap<>();
+        Marca marca = new Marca();
         try {
-            Map<String, Subject> porId = materiasPorId(materias);
-            List<CicloValido> ciclos = ciclosValidos(estudio, porId);
-            agregarEstudio(salida, ciclos, porId, dispositivo);
-            agregarEventos(salida, fechas, porId, ciclos, hoy, dispositivo);
-            agregarNotas(salida, materias, dispositivo, fechaDeNotaSinFecha);
+            Map<String, Subject> porId = materiasPorId(materias, marca);
+            List<CicloValido> ciclos = ciclosValidos(estudio, porId, marca);
+            agregarEstudio(salida, ciclos, porId, dispositivo, marca);
+            agregarEventos(marca, salida, fechas, porId, ciclos, hoy, dispositivo);
+            agregarNotas(marca, salida, materias, dispositivo, fechaDeNotaSinFecha);
         } catch (RuntimeException e) {
+            marca.incompleto = true;
             // Nunca se propaga: se devuelve lo que se alcanzó a armar.
         }
-        return salida;
+        return new Resultado(salida, !marca.incompleto);
     }
 
     // ---- Estudio ----
@@ -65,13 +85,14 @@ public final class RegistrosPanel {
     private record CicloValido(StudyLog log, LocalDate fecha) {
     }
 
-    private static Map<String, Subject> materiasPorId(List<Subject> materias) {
+    private static Map<String, Subject> materiasPorId(List<Subject> materias, Marca marca) {
         Map<String, Subject> porId = new LinkedHashMap<>();
         if (materias == null) return porId;
         for (Subject s : materias) {
             try {
                 if (s != null && s.getId() != null && s.getName() != null) porId.putIfAbsent(s.getId(), s);
             } catch (RuntimeException e) {
+                marca.incompleto = true;
                 // se omite esa materia
             }
         }
@@ -79,7 +100,7 @@ public final class RegistrosPanel {
     }
 
     /** Ciclos con materia existente, fecha ISO válida y minutos positivos. */
-    private static List<CicloValido> ciclosValidos(List<StudyLog> estudio, Map<String, Subject> porId) {
+    private static List<CicloValido> ciclosValidos(List<StudyLog> estudio, Map<String, Subject> porId, Marca marca) {
         List<CicloValido> validos = new ArrayList<>();
         if (estudio == null) return validos;
         for (StudyLog log : estudio) {
@@ -88,6 +109,7 @@ public final class RegistrosPanel {
                 LocalDate fecha = fechaIso(log.getDate());
                 if (fecha != null) validos.add(new CicloValido(log, fecha));
             } catch (RuntimeException e) {
+                marca.incompleto = true;
                 // se omite ese ciclo
             }
         }
@@ -95,7 +117,7 @@ public final class RegistrosPanel {
     }
 
     private static void agregarEstudio(Map<String, Registro> salida, List<CicloValido> ciclos,
-                                       Map<String, Subject> porId, String dispositivo) {
+                                       Map<String, Subject> porId, String dispositivo, Marca marca) {
         // Clave de grupo: fecha, nombre de la materia, id de la materia.
         Map<List<String>, List<CicloValido>> grupos = new TreeMap<>((a, b) -> {
             for (int i = 0; i < a.size(); i++) {
@@ -137,6 +159,7 @@ public final class RegistrosPanel {
                         resumenDeEstudio(s.getName(), new ArrayList<>(temas)), GSON.toJson(detalle),
                         null, null, null, dispositivo, 0L, false));
             } catch (RuntimeException e) {
+                marca.incompleto = true;
                 // se omite ese grupo
             }
         }
@@ -151,7 +174,7 @@ public final class RegistrosPanel {
 
     // ---- Fechas importantes ----
 
-    private static void agregarEventos(Map<String, Registro> salida, List<ImportantDate> fechas,
+    private static void agregarEventos(Marca marca, Map<String, Registro> salida, List<ImportantDate> fechas,
                                        Map<String, Subject> porId, List<CicloValido> ciclos, LocalDate hoy,
                                        String dispositivo) {
         if (fechas == null) return;
@@ -180,6 +203,7 @@ public final class RegistrosPanel {
                 salida.put(id, new Registro("evento", FUENTE, id, AREA, fecha.toString(), null,
                         resumen.toString(), GSON.toJson(detalle), null, tipo, null, dispositivo, 0L, false));
             } catch (RuntimeException e) {
+                marca.incompleto = true;
                 // se omite esa fecha
             }
         }
@@ -197,7 +221,7 @@ public final class RegistrosPanel {
 
     // ---- Notas ----
 
-    private static void agregarNotas(Map<String, Registro> salida, List<Subject> materias, String dispositivo,
+    private static void agregarNotas(Marca marca, Map<String, Registro> salida, List<Subject> materias, String dispositivo,
                                      Function<String, String> fechaDeNotaSinFecha) {
         if (materias == null) return;
         Set<String> vistas = new LinkedHashSet<>();
@@ -220,10 +244,12 @@ public final class RegistrosPanel {
                     try {
                         agregarNota(salida, s, curso, e, clave, dispositivo, fechaDeNotaSinFecha);
                     } catch (RuntimeException ex) {
+                        marca.incompleto = true;
                         // se omite esa nota
                     }
                 }
             } catch (RuntimeException e) {
+                marca.incompleto = true;
                 // se omite esa materia
             }
         }
