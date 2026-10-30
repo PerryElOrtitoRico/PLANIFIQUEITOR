@@ -10,6 +10,7 @@ import panel.core.Registro;
 
 import java.time.Clock;
 import java.time.LocalDate;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -31,9 +32,13 @@ public final class PanelSincronizador implements AutoCloseable {
     public record Resumen(boolean panelActivo, int nuevos, int cambiados, int borrados) {
     }
 
-    /** Copia de los datos tomada en el hilo que llama; {@link #aplicar} trabaja solo con ella. */
-    public record Instantanea(List<Subject> materias, List<StudyLog> estudio, List<ImportantDate> fechas,
-                              boolean confiable) {
+    /**
+     * Lo que se quiere tener en el panel, armado en el hilo que llama con los datos de ese momento. Es todo
+     * inmutable (registros, mapas y booleanos): {@link #aplicar} no vuelve a tocar el modelo del Planificador.
+     * {@code fechasNuevas}: fechas de notas sin fecha vistas por primera vez en esta toma.
+     */
+    public record Instantanea(Map<String, Registro> deseado, boolean completo, boolean confiable,
+                              Map<String, String> fechasNuevas) {
     }
 
     private static final long RETENCION_MARCAS_MS = 30L * 24 * 60 * 60 * 1000;
@@ -45,6 +50,8 @@ public final class PanelSincronizador implements AutoCloseable {
     private ExecutorService ejecutor; // se crea la primera vez que hace falta; protegido por "cierre"
     private boolean cerrado;
     private final Object cierre = new Object();
+    /** Fechas recordadas de las notas sin fecha; null hasta la primera toma con el panel activo. Inmutable. */
+    private volatile Map<String, String> fechasMemoria;
 
     public PanelSincronizador(PanelCompartido panel, EstadoPanel estado, DatosPlanificador datos, Clock reloj) {
         this.panel = panel;
@@ -59,18 +66,38 @@ public final class PanelSincronizador implements AutoCloseable {
     }
 
     /**
-     * Copia los datos en el hilo que llama (el de eventos, normalmente: es el que los modifica). Devuelve null si
-     * el panel está apagado (no lee nada). Si los datos no se pueden leer devuelve una instantánea vacía y no confiable.
+     * Arma lo deseado en el hilo que llama (el de eventos, normalmente: es el que modifica los datos), de modo que
+     * el hilo de sincronización nunca lea objetos mutables. Devuelve null si el panel está apagado (no lee nada).
+     * Si los datos no se pueden leer devuelve una instantánea vacía y no confiable.
      */
     public Instantanea tomar() {
         try {
             ConexionPanel conexion = panel.get();
             if (conexion == null || !conexion.activo()) return null;
-            return new Instantanea(datos.materias(), datos.estudio(), datos.fechas(), datos.confiable());
+            Map<String, String> recordadas = memoria();
+            Map<String, String> nuevas = new LinkedHashMap<>();
+            LocalDate hoy = LocalDate.now(reloj);
+            RegistrosPanel.Resultado armado = RegistrosPanel.construirConEstado(datos.materias(), datos.estudio(),
+                    datos.fechas(), hoy, conexion.dispositivo(), id -> {
+                        String f = recordadas.get(id);
+                        return f != null ? f : nuevas.computeIfAbsent(id, k -> hoy.toString());
+                    });
+            return new Instantanea(Collections.unmodifiableMap(new LinkedHashMap<>(armado.registros())), armado.completo(), datos.confiable(),
+                    Map.copyOf(nuevas));
         } catch (RuntimeException e) {
             LOG.log(Level.WARNING, "No se pudieron copiar los datos para el panel: {0}", e.getClass().getSimpleName());
             // Sin datos de fiar: se corre igual, pero sin publicar nada ni borrar nada.
-            return new Instantanea(List.of(), List.of(), List.of(), false);
+            return new Instantanea(Map.of(), false, false, Map.of());
+        }
+    }
+
+    /** Las fechas recordadas; el archivo de estado se lee una sola vez, la primera que hace falta. */
+    private Map<String, String> memoria() {
+        Map<String, String> m = fechasMemoria;
+        if (m != null) return m;
+        synchronized (this) {
+            if (fechasMemoria == null) fechasMemoria = Map.copyOf(estado.cargar().fechasNotas());
+            return fechasMemoria;
         }
     }
 
@@ -115,24 +142,33 @@ public final class PanelSincronizador implements AutoCloseable {
         }
     }
 
-    /** Todo lo demás: diferencia contra el estado, publicación, marcas de borrado y guardado del estado. */
-    public synchronized Resumen aplicar(Instantanea datos) {
+    /** "Reenviar todo": olvida lo mandado y aplica, sin que una corrida en curso pueda pisar el borrado. */
+    public synchronized Resumen reenviarTodo(Instantanea foto) {
+        estado.vaciar();
+        return aplicar(foto);
+    }
+
+    /** Olvida lo mandado (cambio de servidor), serializado con las corridas. */
+    public synchronized void olvidarEstado() {
+        estado.vaciar();
+    }
+
+    /** Diferencia contra el estado, publicación, marcas de borrado y guardado del estado. No toca el modelo. */
+    public synchronized Resumen aplicar(Instantanea foto) {
         int nuevos = 0;
         int cambiados = 0;
         int borrados = 0;
         try {
             ConexionPanel conexion = panel.get();
-            if (datos == null || conexion == null || !conexion.activo()) return new Resumen(false, 0, 0, 0);
+            if (foto == null || conexion == null || !conexion.activo()) return new Resumen(false, 0, 0, 0);
 
             Estado previo = estado.cargar();
-            Map<String, String> fechas = new LinkedHashMap<>(previo.fechasNotas());
-            LocalDate hoy = LocalDate.now(reloj);
-            RegistrosPanel.Resultado armado = RegistrosPanel.construirConEstado(datos.materias(), datos.estudio(),
-                    datos.fechas(), hoy, conexion.dispositivo(),
-                    id -> fechas.computeIfAbsent(id, k -> hoy.toString()));
-            Map<String, Registro> deseado = armado.registros();
+            // Una fecha ya recordada en el archivo gana sobre la que vio esta toma.
+            Map<String, String> fechas = new LinkedHashMap<>(foto.fechasNuevas());
+            fechas.putAll(previo.fechasNotas());
+            Map<String, Registro> deseado = foto.deseado();
             // Solo se borra del panel con datos de fiar y completos: si no, lo que falta puede ser un error nuestro.
-            boolean sinMarcas = !datos.confiable() || !armado.completo()
+            boolean sinMarcas = !foto.confiable() || !foto.completo()
                     || (deseado.isEmpty() && previo.registros().values().stream().anyMatch(r -> !r.borrado()));
 
             Map<String, Registro> nuevo = new LinkedHashMap<>(previo.registros());
@@ -171,6 +207,7 @@ public final class PanelSincronizador implements AutoCloseable {
                     if (deseado.containsKey(id)) guardadas.put(id, f);
                 });
                 estado.guardar(new Estado(nuevo, guardadas));
+                fechasMemoria = Map.copyOf(guardadas);
             }
         } catch (RuntimeException e) {
             LOG.log(Level.WARNING, "La sincronización con el panel falló: {0}", e.getClass().getSimpleName());

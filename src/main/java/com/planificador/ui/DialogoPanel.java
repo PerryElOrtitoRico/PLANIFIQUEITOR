@@ -1,6 +1,5 @@
 package com.planificador.ui;
 
-import com.planificador.panel.EstadoPanel;
 import com.planificador.panel.PanelSincronizador;
 import com.planificador.panel.PanelSincronizador.Instantanea;
 import com.planificador.panel.PanelSincronizador.Resumen;
@@ -45,7 +44,6 @@ final class DialogoPanel extends JDialog {
 
     private final PanelCompartido panel;
     private final PanelSincronizador sincronizador;
-    private final EstadoPanel estadoPanel;
     private final Path carpetaDatos;
     private final String urlGuardadaAntes;
 
@@ -61,12 +59,10 @@ final class DialogoPanel extends JDialog {
     private final JLabel estado = new JLabel(" ");
     private boolean ocupado;
 
-    DialogoPanel(Frame dueno, PanelCompartido panel, PanelSincronizador sincronizador, EstadoPanel estadoPanel,
-                 Path carpetaDatos) {
+    DialogoPanel(Frame dueno, PanelCompartido panel, PanelSincronizador sincronizador, Path carpetaDatos) {
         super(dueno, "Conexión con el panel", true);
         this.panel = panel;
         this.sincronizador = sincronizador;
-        this.estadoPanel = estadoPanel;
         this.carpetaDatos = carpetaDatos;
         this.urlGuardadaAntes = prellenar();
 
@@ -230,8 +226,7 @@ final class DialogoPanel extends JDialog {
         new SwingWorker<String, Void>() {
             @Override
             protected String doInBackground() {
-                estadoPanel.vaciar();
-                Resumen resumen = sincronizador.aplicar(foto);
+                Resumen resumen = sincronizador.reenviarTodo(foto);
                 conexion.vaciarAhora();
                 return TextosPlanificador.reenvio(resumen, conexion.pendientes());
             }
@@ -261,21 +256,24 @@ final class DialogoPanel extends JDialog {
         boolean enviarAlPanel = enviar.isSelected();
         boolean cambioLaDireccion = !u.equals(urlGuardadaAntes);
         ocupado(true, "Guardando…");
-        new SwingWorker<Void, Void>() {
+        new SwingWorker<Boolean, Void>() {
             @Override
-            protected Void doInBackground() throws Exception {
+            protected Boolean doInBackground() throws Exception {
                 ConexionPanel.guardarConfig(carpetaDatos, u, t, d, enviarAlPanel);
                 // Cierra la conexión vieja y recién después abre la nueva; si falla lo anterior, no se cambia nada.
                 panel.reabrir(() -> ConexionPanel.abrir(carpetaDatos));
+                ConexionPanel nueva = panel.get();
+                boolean activa = nueva != null && nueva.activo();
                 // Otro servidor no sabe nada de lo ya mandado: hay que volver a mandar todo.
-                if (cambioLaDireccion && enviarAlPanel) estadoPanel.vaciar();
-                return null;
+                if (activa && cambioLaDireccion) sincronizador.olvidarEstado();
+                return activa;
             }
 
             @Override
             protected void done() {
+                boolean activa;
                 try {
-                    get();
+                    activa = get();
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                     ocupado(false, " ");
@@ -284,6 +282,12 @@ final class DialogoPanel extends JDialog {
                     ocupado(false, " ");
                     JOptionPane.showMessageDialog(DialogoPanel.this,
                             TextosPlanificador.errorAlGuardar(e.getCause() != null ? e.getCause() : e), "Error",
+                            JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
+                if (!TextosPlanificador.debeCerrarTrasGuardar(enviarAlPanel, activa)) {
+                    ocupado(false, TextosPlanificador.notaInactiva());
+                    JOptionPane.showMessageDialog(DialogoPanel.this, TextosPlanificador.notaInactiva(), "Error",
                             JOptionPane.ERROR_MESSAGE);
                     return;
                 }

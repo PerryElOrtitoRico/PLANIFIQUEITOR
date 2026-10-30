@@ -8,6 +8,7 @@ import java.io.IOException;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class TextosPlanificadorTest {
 
@@ -55,5 +56,13 @@ class TextosPlanificadorTest {
         assertEquals("No se pudo reenviar: IllegalStateException",
                 TextosPlanificador.errorAlReenviar(new IllegalStateException(" ")));
         assertFalse(TextosPlanificador.errorAlReenviar(null).isBlank());
+    }
+
+    @Test
+    void despuesDeGuardarSoloSeCierraSiNoSeEsperabaEnvio() {
+        assertTrue(TextosPlanificador.debeCerrarTrasGuardar(true, true));
+        assertFalse(TextosPlanificador.debeCerrarTrasGuardar(true, false));
+        assertTrue(TextosPlanificador.debeCerrarTrasGuardar(false, false));
+        assertTrue(TextosPlanificador.debeCerrarTrasGuardar(false, true));
     }
 }

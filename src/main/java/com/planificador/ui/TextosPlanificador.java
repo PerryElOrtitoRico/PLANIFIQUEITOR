@@ -40,4 +40,9 @@ final class TextosPlanificador {
     static String errorAlReenviar(Throwable causa) {
         return "No se pudo reenviar: " + TextosConexion.causa(causa);
     }
+
+    /** Tras guardar: si se esperaba enviar y la conexión guardada no quedó activa, la ventana sigue abierta. */
+    static boolean debeCerrarTrasGuardar(boolean enviarMarcado, boolean activa) {
+        return !enviarMarcado || activa;
+    }
 }
