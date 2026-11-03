@@ -16,7 +16,7 @@ public class MainWindow extends JFrame {
     private Path carpetaDatos;
 
     public MainWindow() {
-        setTitle("Planificador de estudio");
+        setTitle("PLANIFIQUEITOR");
         setSize(1100, 720);
         setMinimumSize(new Dimension(900, 600));
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
