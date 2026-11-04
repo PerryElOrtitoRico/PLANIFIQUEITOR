@@ -2,9 +2,11 @@ package com.planificador.ui;
 
 import com.planificador.model.PomodoroSettings;
 import com.planificador.model.StudyLog;
+import com.planificador.model.StudySession;
 import com.planificador.model.Subject;
 import com.planificador.model.Topic;
 import com.planificador.model.Unit;
+import com.planificador.service.CronometroSesion;
 import com.planificador.service.DataManager;
 import com.planificador.service.PomodoroEngine;
 import com.planificador.service.PomodoroPhase;
@@ -26,6 +28,8 @@ public class PomodoroPanel extends JPanel {
     private final Runnable onSaved;               // se llama después de guardar un ciclo (para refrescar otras pantallas)
     final JComboBox<String> subjectCombo = new JComboBox<>();
     final JComboBox<String> topicCombo = new JComboBox<>();
+    final JComboBox<String> sessionCombo = new JComboBox<>();
+    final JLabel sessionLabel = new JLabel(" ", SwingConstants.CENTER);
     final JLabel timeLabel = new JLabel("25:00", SwingConstants.CENTER);
     final JLabel phaseLabel = new JLabel("Estudio", SwingConstants.CENTER);
     final JLabel cyclesLabel = new JLabel("Ciclos completos: 0", SwingConstants.CENTER);
@@ -40,6 +44,9 @@ public class PomodoroPanel extends JPanel {
     boolean running = false;
     private Subject cycleSubject;                 // materia y tema con que arrancó el ciclo de estudio en curso
     private Topic cycleTopic;
+    private String cycleDesc;                     // descripción de la sesión ligada con que arrancó el ciclo (o null)
+    private List<StudySession> sessions = new ArrayList<>();   // sesiones de hoy, en el orden del combo (índice 0 = ninguna)
+    private CronometroSesion cron;                // reloj de la sesión ligada: corre en las fases de estudio y para en los descansos
     private long lastTickNanos = System.nanoTime();
     private Consumer<String> alActualizar;        // recibe "fase mm:ss" cada vez que cambian las etiquetas (reloj flotante)
 
@@ -48,7 +55,9 @@ public class PomodoroPanel extends JPanel {
         setLayout(new BorderLayout(10, 10));
         setBorder(BorderFactory.createEmptyBorder(15, 15, 15, 15));
 
-        JPanel choose = new JPanel(new GridLayout(2, 2, 8, 6));
+        JPanel choose = new JPanel(new GridLayout(3, 2, 8, 6));
+        choose.add(new JLabel("Sesión de hoy (opcional):"));
+        choose.add(sessionCombo);
         choose.add(new JLabel("Materia:"));
         choose.add(subjectCombo);
         choose.add(new JLabel("Tema (opcional):"));
@@ -57,9 +66,10 @@ public class PomodoroPanel extends JPanel {
 
         timeLabel.setFont(new Font("SansSerif", Font.BOLD, 56));
         phaseLabel.setFont(new Font("SansSerif", Font.BOLD, 16));
-        JPanel center = new JPanel(new GridLayout(3, 1));
+        JPanel center = new JPanel(new GridLayout(4, 1));
         center.add(phaseLabel);
         center.add(timeLabel);
+        center.add(sessionLabel);
         center.add(cyclesLabel);
         add(center, BorderLayout.CENTER);
 
@@ -73,9 +83,11 @@ public class PomodoroPanel extends JPanel {
         skipButton.addActionListener(e -> skipPhase());
         settingsButton.addActionListener(e -> editSettings());
         subjectCombo.addActionListener(e -> loadTopics());
+        sessionCombo.addActionListener(e -> sessionChosen());
 
         loadSubjects();
         engine = new PomodoroEngine(DataManager.getInstance().getPomodoroSettings());
+        cargarSesiones(TodayPanel.getTodayDayKey());
         updateLabels();
     }
 
@@ -85,6 +97,38 @@ public class PomodoroPanel extends JPanel {
         subjectCombo.removeAllItems();
         for (Subject s : subjects) subjectCombo.addItem(s.getName());
         loadTopics();
+    }
+
+    /** Llena el combo con las sesiones de la guía de ese día ("lunes", "martes"...). Sin elegir ninguna no se liga nada. */
+    void cargarSesiones(String diaClave) {
+        sessions = new ArrayList<>();
+        sessionCombo.removeAllItems();
+        sessionCombo.addItem("(ninguna)");
+        for (StudySession ss : DataManager.getInstance().getStudySessions()) {
+            if (!ss.getDayOfWeek().equalsIgnoreCase(diaClave)) continue;
+            Subject sub = DataManager.getInstance().getSubjectById(ss.getSubjectId());
+            sessions.add(ss);
+            sessionCombo.addItem((sub != null ? sub.getName() : "General") + " - " + ss.getTopicDescription()
+                    + " (" + ss.getDurationMinutes() + " min)");
+        }
+    }
+
+    /** La sesión ligada, o null si está elegido "(ninguna)". */
+    StudySession selectedSession() {
+        int i = sessionCombo.getSelectedIndex() - 1;
+        return (i >= 0 && i < sessions.size()) ? sessions.get(i) : null;
+    }
+
+    /** Al elegir una sesión: arranca su reloj y se alinea la materia; "(ninguna)" lo apaga. */
+    private void sessionChosen() {
+        StudySession ss = selectedSession();
+        cron = ss != null ? new CronometroSesion(ss.getDurationMinutes()) : null;
+        if (ss != null) {
+            for (int i = 0; i < subjects.size(); i++) {
+                if (subjects.get(i).getId().equals(ss.getSubjectId())) { subjectCombo.setSelectedIndex(i); break; }
+            }
+        }
+        updateLabels();
     }
 
     /** Llena el combo de temas con "(sin tema)" y los temas de todas las unidades de la materia elegida. */
@@ -120,7 +164,10 @@ public class PomodoroPanel extends JPanel {
         int n = (int) Math.max(1, Math.min(3600, Math.round((now - lastTickNanos) / 1e9)));
         lastTickNanos += n * 1_000_000_000L;
         PomodoroPhase finished = null;
-        for (int i = 0; i < n && finished == null; i++) finished = engine.tick();
+        for (int i = 0; i < n && finished == null; i++) {
+            if (cron != null && engine.phase() == PomodoroPhase.WORK) cron.avanzar(1);   // el reloj de la sesión solo corre estudiando
+            finished = engine.tick();
+        }
         if (finished == PomodoroPhase.WORK) saveCycle();
         if (finished != null) cycleSubject = null;
         updateLabels();
@@ -128,6 +175,9 @@ public class PomodoroPanel extends JPanel {
             timer.stop();
             running = false;
             startButton.setText("▶ Seguir");
+            sessionCombo.setEnabled(true);
+            subjectCombo.setEnabled(selectedSession() == null);
+            topicCombo.setEnabled(selectedSession() == null);
             Toolkit.getDefaultToolkit().beep();
         }
     }
@@ -137,8 +187,9 @@ public class PomodoroPanel extends JPanel {
         Subject s = cycleSubject != null ? cycleSubject : selectedSubject();
         if (s == null) return;
         Topic t = cycleSubject != null ? cycleTopic : selectedTopic();
+        String titulo = t != null ? t.getTitle() : (cycleSubject != null ? cycleDesc : null);
         int minutes = engine.minutesFor(PomodoroPhase.WORK);
-        StudyLog log = StudyLogFactory.fromWorkCycle("pl_" + java.util.UUID.randomUUID(), s.getId(), t != null ? t.getId() : null, t != null ? t.getTitle() : null, java.time.LocalDateTime.now(), minutes);
+        StudyLog log = StudyLogFactory.fromWorkCycle("pl_" + java.util.UUID.randomUUID(), s.getId(), t != null ? t.getId() : null, titulo, java.time.LocalDateTime.now(), minutes);
         DataManager.getInstance().addStudyLog(log);
         if (onSaved != null) onSaved.run();
     }
@@ -148,7 +199,12 @@ public class PomodoroPanel extends JPanel {
         timeLabel.setText(PomodoroEngine.format(engine.secondsLeft()));
         phaseLabel.setText(phaseName(engine.phase()));
         cyclesLabel.setText("Ciclos completos: " + engine.completedWorkCycles());
-        if (alActualizar != null) alActualizar.accept(phaseLabel.getText() + "  " + timeLabel.getText());
+        String sesion = cron == null ? null
+                : cron.cumplida() ? "Sesión cumplida" : "Sesión: " + PomodoroEngine.format(cron.restantes());
+        sessionLabel.setText(sesion != null ? sesion : " ");
+        if (alActualizar != null) {
+            alActualizar.accept(phaseLabel.getText() + "  " + timeLabel.getText() + (sesion != null ? "  |  " + sesion : ""));
+        }
     }
 
     /** Avisa el texto del reloj en cada actualización; se llama una vez al registrar para mostrar el valor actual. */
@@ -163,6 +219,7 @@ public class PomodoroPanel extends JPanel {
             timer.stop();
             running = false;
             startButton.setText("▶ Seguir");
+            sessionCombo.setEnabled(engine.phase() != PomodoroPhase.WORK || cycleSubject == null);
         } else {
             if (selectedSubject() == null) {
                 JOptionPane.showMessageDialog(this, "Primero agregá una materia.", "Pomodoro", JOptionPane.WARNING_MESSAGE);
@@ -170,10 +227,12 @@ public class PomodoroPanel extends JPanel {
             }
             if (engine.phase() == PomodoroPhase.WORK && cycleSubject == null) {
                 cycleSubject = selectedSubject();
-                cycleTopic = selectedTopic();
+                cycleTopic = selectedSession() != null ? null : selectedTopic();
+                cycleDesc = selectedSession() != null ? selectedSession().getTopicDescription() : null;
             }
-            subjectCombo.setEnabled(cycleSubject == null);
-            topicCombo.setEnabled(cycleSubject == null);
+            subjectCombo.setEnabled(cycleSubject == null && selectedSession() == null);
+            topicCombo.setEnabled(cycleSubject == null && selectedSession() == null);
+            sessionCombo.setEnabled(false);
             lastTickNanos = System.nanoTime();
             timer.start();
             running = true;
@@ -185,8 +244,9 @@ public class PomodoroPanel extends JPanel {
     void skipPhase() {
         engine.skip();
         cycleSubject = null;
-        subjectCombo.setEnabled(true);
-        topicCombo.setEnabled(true);
+        subjectCombo.setEnabled(selectedSession() == null);
+        topicCombo.setEnabled(selectedSession() == null);
+        sessionCombo.setEnabled(true);
         updateLabels();
     }
 

@@ -48,7 +48,7 @@ public class TodayPanel extends JPanel {
 
         JButton pomodoroBtn = new JButton("Pomodoro");
         pomodoroBtn.setFocusPainted(false);
-        pomodoroBtn.addActionListener(e -> new PomodoroDialog(mainFrame).setVisible(true));
+        pomodoroBtn.addActionListener(e -> PomodoroDialog.mostrar(mainFrame));
 
         rightBtns.add(addTodayBtn);
         rightBtns.add(pomodoroBtn);
@@ -74,7 +74,7 @@ public class TodayPanel extends JPanel {
         refresh();
     }
 
-    private String getTodayDayKey() {
+    static String getTodayDayKey() {
         DayOfWeek dow = LocalDate.now().getDayOfWeek();
         return switch (dow) {
             case MONDAY -> "lunes";

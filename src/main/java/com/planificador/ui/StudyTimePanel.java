@@ -39,7 +39,7 @@ public class StudyTimePanel extends JPanel {
         header.add(title, BorderLayout.WEST);
         JButton pomodoroBtn = new JButton("Pomodoro");
         pomodoroBtn.setFocusPainted(false);
-        pomodoroBtn.addActionListener(e -> new PomodoroDialog(mainFrame).setVisible(true));
+        pomodoroBtn.addActionListener(e -> PomodoroDialog.mostrar(mainFrame));
         header.add(pomodoroBtn, BorderLayout.EAST);
 
         JPanel weekNav = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
