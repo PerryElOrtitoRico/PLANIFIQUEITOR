@@ -128,8 +128,23 @@ public class TodayPanel extends JPanel {
                     dialog.setVisible(true);
                 });
 
+                Runnable despues = () -> {
+                    if (mainFrame != null) mainFrame.refreshAllPanels();
+                    else refresh();
+                };
+                JButton editBtn = new JButton("Editar");
+                editBtn.addActionListener(e -> WeeklyPanel.editarSesion(this, session, despues));
+                JButton delBtn = new JButton("Borrar");
+                delBtn.addActionListener(e -> WeeklyPanel.borrarSesion(this, session, despues));
+
+                JPanel botones = new JPanel(new FlowLayout(FlowLayout.RIGHT, 6, 0));
+                botones.setOpaque(false);
+                botones.add(startBtn);
+                botones.add(editBtn);
+                botones.add(delBtn);
+
                 card.add(chk, BorderLayout.CENTER);
-                card.add(startBtn, BorderLayout.EAST);
+                card.add(botones, BorderLayout.EAST);
                 sessionsListPanel.add(card);
                 sessionsListPanel.add(Box.createRigidArea(new Dimension(0, 10)));
             }

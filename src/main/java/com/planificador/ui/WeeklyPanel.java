@@ -76,7 +76,7 @@ public class WeeklyPanel extends JPanel {
 
             JLabel label = new JLabel("<html><b>" + dayLabel + "</b><br><font color='#64748b' size='2'>" + totalMinutes + " min planificados</font></html>");
 
-            JButton addBtn = new JButton("");
+            JButton addBtn = new JButton("+");
             addBtn.setToolTipText("Agregar sesión para " + dayLabel);
             addBtn.setMargin(new Insets(2, 6, 2, 6));
             addBtn.addActionListener(e -> showAddSessionDialog(dayKey));
@@ -101,7 +101,7 @@ public class WeeklyPanel extends JPanel {
                     String subName = sub != null ? sub.getName() : "General";
 
                     JPanel card = new JPanel(new BorderLayout(5, 5));
-                    card.setMaximumSize(new Dimension(Integer.MAX_VALUE, 90));
+                    card.setMaximumSize(new Dimension(Integer.MAX_VALUE, 130));
                     card.setBorder(BorderFactory.createCompoundBorder(
                             BorderFactory.createLineBorder(s.isCompleted() ? new Color(0x43A047) : UIManager.getColor("Component.borderColor"), 1),
                             BorderFactory.createEmptyBorder(6, 6, 6, 6)
@@ -128,22 +128,21 @@ public class WeeklyPanel extends JPanel {
                         dialog.setVisible(true);
                     });
 
-                    JButton editBtn = new JButton("");
+                    JButton editBtn = new JButton("Editar");
                     editBtn.setToolTipText("Editar sesión");
                     editBtn.setMargin(new Insets(1, 4, 1, 4));
-                    editBtn.addActionListener(e -> showEditSessionDialog(s));
+                    editBtn.addActionListener(e -> editarSesion(this, s, () -> {
+                        if (mainFrame != null) mainFrame.refreshAllPanels();
+                        else refresh();
+                    }));
 
-                    JButton delBtn = new JButton("");
+                    JButton delBtn = new JButton("Borrar");
                     delBtn.setToolTipText("Eliminar sesión");
                     delBtn.setMargin(new Insets(1, 4, 1, 4));
-                    delBtn.addActionListener(e -> {
-                        int confirm = JOptionPane.showConfirmDialog(this, "¿Eliminar la sesión: " + s.getTopicDescription() + "?", "Eliminar Sesión", JOptionPane.YES_NO_OPTION);
-                        if (confirm == JOptionPane.YES_OPTION) {
-                            DataManager.getInstance().removeStudySession(s.getId());
-                            if (mainFrame != null) mainFrame.refreshAllPanels();
-                            else refresh();
-                        }
-                    });
+                    delBtn.addActionListener(e -> borrarSesion(this, s, () -> {
+                        if (mainFrame != null) mainFrame.refreshAllPanels();
+                        else refresh();
+                    }));
 
                     actionsPanel.add(timerBtn);
                     actionsPanel.add(editBtn);
@@ -239,7 +238,17 @@ public class WeeklyPanel extends JPanel {
         }
     }
 
-    private void showEditSessionDialog(StudySession session) {
+    /** Pide confirmación y borra la sesión; después corre {@code despues}. Lo usan Hoy y Guía semanal. */
+    static void borrarSesion(Component parent, StudySession s, Runnable despues) {
+        int confirm = JOptionPane.showConfirmDialog(parent, "¿Eliminar la sesión: " + s.getTopicDescription() + "?", "Eliminar Sesión", JOptionPane.YES_NO_OPTION);
+        if (confirm == JOptionPane.YES_OPTION) {
+            DataManager.getInstance().removeStudySession(s.getId());
+            despues.run();
+        }
+    }
+
+    /** Diálogo para editar la sesión; si se acepta, guarda y corre {@code despues}. Lo usan Hoy y Guía semanal. */
+    static void editarSesion(Component parent, StudySession session, Runnable despues) {
         JComboBox<String> dayCombo = new JComboBox<>(DAYS_LABELS);
         for (int i = 0; i < DAYS_KEYS.length; i++) {
             if (DAYS_KEYS[i].equalsIgnoreCase(session.getDayOfWeek())) {
@@ -276,11 +285,11 @@ public class WeeklyPanel extends JPanel {
                 "Duración en minutos:", durationField
         };
 
-        int option = JOptionPane.showConfirmDialog(this, message, "Editar Sesión de Estudio", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
+        int option = JOptionPane.showConfirmDialog(parent, message, "Editar Sesión de Estudio", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
         if (option == JOptionPane.OK_OPTION) {
             String topic = topicField.getText().trim();
             if (topic.isEmpty()) {
-                JOptionPane.showMessageDialog(this, "El tema de estudio no puede estar vacío.", "Campo requerido", JOptionPane.WARNING_MESSAGE);
+                JOptionPane.showMessageDialog(parent, "El tema de estudio no puede estar vacío.", "Campo requerido", JOptionPane.WARNING_MESSAGE);
                 return;
             }
 
@@ -302,11 +311,7 @@ public class WeeklyPanel extends JPanel {
             session.setDurationMinutes(minutes);
 
             DataManager.getInstance().saveData();
-            if (mainFrame != null) {
-                mainFrame.refreshAllPanels();
-            } else {
-                refresh();
-            }
+            despues.run();
         }
     }
 }
