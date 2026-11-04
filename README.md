@@ -1,4 +1,4 @@
-# PLANIFIQUEITOR (Planificador de estudio)
+# ESTUDIEITOR (antes PLANIFIQUEITOR, Planificador de estudio)
 
 Aplicación nativa de escritorio desarrollada en **Java (Swing + FlatLaf)** para la gestión completa de plan de estudio universitario, materias, guía semanal y fechas importantes.
 
