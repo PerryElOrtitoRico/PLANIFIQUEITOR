@@ -15,6 +15,7 @@ import java.awt.*;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Consumer;
 
 /**
  * Pomodoro: elijo materia (y tema, opcional) y corre ciclos de estudio y descanso.
@@ -40,6 +41,7 @@ public class PomodoroPanel extends JPanel {
     private Subject cycleSubject;                 // materia y tema con que arrancó el ciclo de estudio en curso
     private Topic cycleTopic;
     private long lastTickNanos = System.nanoTime();
+    private Consumer<String> alActualizar;        // recibe "fase mm:ss" cada vez que cambian las etiquetas (reloj flotante)
 
     public PomodoroPanel(Runnable onSaved) {
         this.onSaved = onSaved;
@@ -146,6 +148,13 @@ public class PomodoroPanel extends JPanel {
         timeLabel.setText(PomodoroEngine.format(engine.secondsLeft()));
         phaseLabel.setText(phaseName(engine.phase()));
         cyclesLabel.setText("Ciclos completos: " + engine.completedWorkCycles());
+        if (alActualizar != null) alActualizar.accept(phaseLabel.getText() + "  " + timeLabel.getText());
+    }
+
+    /** Avisa el texto del reloj en cada actualización; se llama una vez al registrar para mostrar el valor actual. */
+    public void setAlActualizar(Consumer<String> alActualizar) {
+        this.alActualizar = alActualizar;
+        updateLabels();
     }
 
     /** Iniciar / pausar. */
