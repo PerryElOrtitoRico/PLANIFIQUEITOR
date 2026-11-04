@@ -45,4 +45,23 @@ class PomodoroPanelTest {
         assertNull(dm.getStudyLogs().get(3).getTopicId());
         assertEquals("Ciclos completos: 1", p.cyclesLabel.getText());
     }
+
+    @Test
+    void elRelojDeLaSesionCorreEstudiandoYParaEnElDescanso() throws Exception {
+        DataManager dm = UiDatos.cargar(tmp);
+        dm.setPomodoroSettings(new PomodoroSettings(1, 1, 2, 2));
+        PomodoroPanel p = new PomodoroPanel(null);
+        p.cargarSesiones("lunes");
+        p.sessionCombo.setSelectedIndex(1);                    // ss1: 60 min
+        assertEquals("s1", p.selectedSession().getSubjectId());
+        p.toggle();
+        for (int i = 0; i < 60; i++) p.onTick();               // un ciclo de estudio completo
+        assertEquals("Sesión: 59:00", p.sessionLabel.getText());
+        assertEquals("Descanso corto", p.phaseLabel.getText());
+        p.toggle();
+        for (int i = 0; i < 30; i++) p.onTick();               // durante el descanso no avanza
+        assertEquals("Sesión: 59:00", p.sessionLabel.getText());
+        StudyLog l = dm.getStudyLogs().get(dm.getStudyLogs().size() - 1);
+        assertEquals("a", l.getTopicTitle());
+    }
 }
