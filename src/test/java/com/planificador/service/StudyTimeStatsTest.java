@@ -7,7 +7,6 @@ import org.junit.jupiter.api.Test;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
-import java.util.SortedMap;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -77,33 +76,6 @@ class StudyTimeStatsTest {
         assertEquals(2, result.size());
         assertEquals(new SubjectWeekTime("s1", 60, 25), result.get(0));
         assertEquals(new SubjectWeekTime("s2", 0, 0), result.get(1));
-    }
-
-    @Test
-    void minutosPorSemana() {
-        // Logs:
-        // 1. log("s1", "2026-10-12", 25) -> 2026-10-12 es lunes: semana del 2026-10-12
-        // 2. log("s1", "2026-10-20", 25) -> Week starts 2026-10-19 (Mon)
-        // 3. log("s2", "2026-10-20", 50) -> Week starts 2026-10-19 (Mon)
-        List<StudyLog> logs = List.of(
-                log("s1", "2026-10-12", 25),
-                log("s1", "2026-10-20", 25),
-                log("s2", "2026-10-20", 50)
-        );
-
-        // Test for "s1"
-        SortedMap<LocalDate, Integer> s1Stats = StudyTimeStats.minutesByWeek(logs, "s1");
-        // 2026-10-12 es lunes: es el inicio de su semana
-        assertEquals(25, s1Stats.get(LocalDate.of(2026, 10, 12)));
-        // 2026-10-20 is a Monday, weekStart is 2026-10-19 (Monday)
-        assertEquals(25, s1Stats.get(LocalDate.of(2026, 10, 19)));
-
-        // Test for all subjects (null)
-        SortedMap<LocalDate, Integer> allStats = StudyTimeStats.minutesByWeek(logs, null);
-        // Semana del 2026-10-12: s1=25
-        assertEquals(25, allStats.get(LocalDate.of(2026, 10, 12)));
-        // Week starting 2026-10-19: s1=25, s2=50. Total = 75
-        assertEquals(75, allStats.get(LocalDate.of(2026, 10, 19)));
     }
 
     @Test

@@ -11,8 +11,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.SortedMap;
-import java.util.TreeMap;
 
 /** Horas de estudio por materia y por semana, a partir de los StudyLog (Pomodoro) y la guía semanal (StudySession). */
 public final class StudyTimeStats {
@@ -62,23 +60,6 @@ public final class StudyTimeStats {
         List<SubjectWeekTime> out = new ArrayList<>();
         for (String id : subjectIds) {
             out.add(new SubjectWeekTime(id, planned.getOrDefault(id, 0), actual.getOrDefault(id, 0)));
-        }
-        return out;
-    }
-
-    /** Minutos por semana (clave: lunes de la semana) de una materia; subjectId null = todas las materias. */
-    public static SortedMap<LocalDate, Integer> minutesByWeek(List<StudyLog> logs, String subjectId) {
-        SortedMap<LocalDate, Integer> out = new TreeMap<>();
-        for (StudyLog log : logs) {
-            if (subjectId != null && !subjectId.equals(log.getSubjectId())) continue;
-            if (log.getDate() == null) continue;
-            LocalDate f;
-            try {
-                f = LocalDate.parse(log.getDate());
-            } catch (DateTimeParseException e) {
-                continue;
-            }
-            out.merge(weekStart(f), log.getMinutes(), Integer::sum);
         }
         return out;
     }

@@ -30,13 +30,6 @@
             <version>2.10.1</version>
         </dependency>
 
-        <!-- SQLite Database (Optional Persistent DB) -->
-        <dependency>
-            <groupId>org.xerial</groupId>
-            <artifactId>sqlite-jdbc</artifactId>
-            <version>3.45.1.0</version>
-        </dependency>
-
         <!-- Cliente compartido del panel (Registro, Clave, ConexionPanel) -->
         <dependency>
             <groupId>panel</groupId>
