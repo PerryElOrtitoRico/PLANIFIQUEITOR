@@ -1,8 +1,5 @@
 package com.planificador.model;
 
-import java.time.LocalDate;
-import java.time.temporal.ChronoUnit;
-
 public class ImportantDate {
     private String id;
     private String title;
@@ -27,13 +24,4 @@ public class ImportantDate {
     public String getType() { return type; }
     public String getNotes() { return notes; }
 
-    public long getDaysRemaining() {
-        try {
-            LocalDate target = LocalDate.parse(date);
-            LocalDate now = LocalDate.now();
-            return ChronoUnit.DAYS.between(now, target);
-        } catch (Exception e) {
-            return 0;
-        }
-    }
 }

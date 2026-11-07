@@ -2,10 +2,12 @@ package com.planificador.ui;
 
 import com.planificador.model.ImportantDate;
 import com.planificador.model.Subject;
+import com.planificador.service.Countdown;
 import com.planificador.service.DataManager;
 
 import javax.swing.*;
 import java.awt.*;
+import java.time.LocalDate;
 import java.util.List;
 
 public class DatesPanel extends JPanel {
@@ -66,8 +68,9 @@ public class DatesPanel extends JPanel {
                         BorderFactory.createEmptyBorder(10, 12, 10, 12)
                 ));
 
-                long daysRem = d.getDaysRemaining();
-                String daysText = daysRem == 0 ? "¡Hoy!" : (daysRem > 0 ? "Faltan " + daysRem + " días" : "Pasó hace " + Math.abs(daysRem) + " días");
+                Long daysRem = Countdown.daysUntil(d.getDate(), LocalDate.now());
+                String daysText = daysRem == null ? "Fecha inválida"
+                        : daysRem == 0 ? "¡Hoy!" : (daysRem > 0 ? "Faltan " + daysRem + " días" : "Pasó hace " + Math.abs(daysRem) + " días");
 
                 JLabel lbl = new JLabel("<html><b>" + d.getTitle() + "</b> (" + subName + ") - Fecha: " + d.getDate() + " | <font color='#e11d48'><b>" + daysText + "</b></font></html>");
                 card.add(lbl, BorderLayout.CENTER);
@@ -94,7 +97,7 @@ public class DatesPanel extends JPanel {
 
     private void showAddDialog() {
         JTextField titleField = new JTextField();
-        JTextField dateField = new JTextField("2026-08-15");
+        JTextField dateField = new JTextField(LocalDate.now().toString());
         JComboBox<String> typeCombo = new JComboBox<>(new String[]{"parcial", "final", "tp", "entrega"});
 
         List<Subject> subs = DataManager.getInstance().getSubjects();
@@ -113,6 +116,11 @@ public class DatesPanel extends JPanel {
             String selectedSubId = (subs.isEmpty() || subCombo.getSelectedIndex() >= subs.size())
                     ? "general"
                     : subs.get(subCombo.getSelectedIndex()).getId();
+            if (Countdown.daysUntil(dateField.getText().trim(), LocalDate.now()) == null) {
+                JOptionPane.showMessageDialog(this, "La fecha no es válida. Usá el formato AAAA-MM-DD (por ejemplo "
+                        + LocalDate.now() + ").", "Fecha inválida", JOptionPane.WARNING_MESSAGE);
+                return;
+            }
 
             ImportantDate newDate = new ImportantDate(
                     "d_" + System.currentTimeMillis(),
