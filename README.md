@@ -6,6 +6,7 @@ Aplicación nativa de escritorio desarrollada en **Java (Swing + FlatLaf)** para
 - **Hoy**: lo planeado para hoy y la **cuenta regresiva** de las fechas importantes de los próximos 30 días ("Primer parcial (Mecánica de Fluidos) en 6 días"; en rojo las de 7 días o menos).
 - **Guía semanal**, **Materias** (unidades y temas), **Fechas clave** y **Progreso**, como antes.
 - **🍅 Pomodoro** (botón en Hoy y en Tiempo): elegís materia y, si querés, tema; ciclos de 25 min de estudio y 5 de descanso, con un descanso largo de 15 cada 4 ciclos. Los cuatro valores se cambian con **⚙ Ajustes**. Al terminar cada fase el reloj se frena y suena un aviso. Cada ciclo de estudio terminado se guarda como sesión de estudio (`studyLogs`); saltear una fase no guarda nada.
+- **📝 Nota de la sesión**: en el Pomodoro y en el cronómetro hay un campo opcional ("hice 5 ejercicios de la guía 3") que se guarda con la sesión; en **Historial** se ve en la columna Nota y se cambia con **Editar nota…**.
 - **⏳ Tiempo**: por materia, lo estudiado con el Pomodoro en la semana elegida contra lo planeado en la guía semanal (suma de los minutos de la guía), y una tabla de las últimas 8 semanas.
 - **🎓 Cursada**: por materia cargás las reglas (asistencia mínima, nota para regularizar y para promocionar, cantidad de parciales, cuáles tienen recuperatorio y cuántas clases tiene el cuatrimestre), las notas de parciales, recuperatorios y TP, y la asistencia de cada clase. Calcula la condición (**promoción, regular, libre o en curso**) y cuánto falta ("Podés faltar 2 clases más", "Parcial 2: falta rendir (necesitás 6 para regularizar y 8 para promocionar)").
 
@@ -41,15 +42,34 @@ java -jar target/planificador-estudio-desktop-1.0.0-jar-with-dependencies.jar
 ```
 
 ## 💾 Dónde se guardan los datos
-Los datos viven siempre en el mismo archivo, sin importar desde qué carpeta se abra la app:
+Los datos viven en una carpeta que sincroniza **Syncthing** con el celular y la tablet:
 
 ```
-~/.local/share/planificador-estudio/planificador_datos.json
+~/Documentos/Carpeta personal/Estudieitor/Datos/
+├── sesiones/<id>.json    una sesión de estudio (ciclo de Pomodoro, cronómetro o sesión de la guía hecha)
+├── materias/<id>.json    una materia con sus unidades, temas y cursada
+├── guia/<id>.json        una sesión de la guía semanal
+├── fechas/<id>.json      una fecha importante
+├── ajustes/pomodoro.json ajustes del Pomodoro
+└── .stignore             "*.tmp": Syncthing no copia los temporales de escritura
 ```
 
-(o `$XDG_DATA_HOME/planificador-estudio/` si esa variable está definida). Las sesiones del Pomodoro (`studyLogs`), sus ajustes (`pomodoroSettings`) y la cursada de cada materia (`course`) van en el mismo archivo; son campos opcionales, así que un archivo de una versión anterior carga igual. Se guarda primero en un temporal y después se reemplaza, así un corte a mitad de escritura no deja el archivo roto. Si el archivo no se puede leer, se guarda una copia `planificador_datos.json.danado-<fecha>` antes de cargar los datos de ejemplo.
+- **Un archivo por cosa.** Las sesiones nunca chocan entre dispositivos: cada una es un archivo nuevo, así que lo estudiado en la tablet y en el celular sin conexión se suma solo.
+- **Solo se escribe lo que cambió**, a un temporal y después se reemplaza.
+- **No se pisa lo que cambió en otro dispositivo.** Si con el programa abierto llega por Syncthing un cambio a algo que también editaste, ese archivo no se toca, se carga la versión que llegó y aparece un aviso para repetir el cambio. Al volver a la ventana del programa se relee la carpeta.
+- **Copias de conflicto.** Si dos dispositivos editaron lo mismo sin conexión, Syncthing se queda con la versión más nueva y guarda la otra como `*.sync-conflict-*.json`. El programa las ignora y el título de la ventana dice cuántas hay.
+- **Archivos que no se pueden leer** (dañados, sin `id`, o cuyo nombre no es el de su `id`) se saltean, se avisan y nunca se pisan ni se borran. Mientras haya alguno, no se mandan borrados al Panel.
 
-Las versiones anteriores guardaban `planificador_datos.json` en la carpeta desde donde se abría la app. Al primer inicio, si la ubicación nueva no existe, se **copia** el más reciente de esos archivos viejos (carpeta actual o carpeta personal); el original no se borra.
+### Migración desde la versión anterior
+Antes todo estaba en `~/.local/share/planificador-estudio/planificador_datos.json` (o `$XDG_DATA_HOME/planificador-estudio/`). Al primer inicio, si la carpeta nueva está vacía, ese archivo se pasa a archivos sueltos **una sola vez**: queda la marca `migrado-a-carpeta` junto al JSON, y el JSON **no se borra** (queda como respaldo, pero el programa ya no lo usa). Si la migración falla a medias, se deshace y se vuelve a intentar. Si el JSON no se puede leer, se guarda una copia `planificador_datos.json.danado-<fecha>` y el programa arranca vacío.
+
+Lo del Panel (`panel-cliente.properties`, con el token, `panel-cola.jsonl` y `panel-estado.json`) sigue en `~/.local/share/planificador-estudio/` y **no** se sincroniza.
+
+### Sincronizar con el celular y la tablet (Syncthing)
+1. En la PC, en la interfaz de Syncthing (`http://127.0.0.1:8384`), **Agregar carpeta**: etiqueta `Estudieitor (datos)`, ID `estudieitor-datos`, ruta `~/Documentos/Carpeta personal/Estudieitor/Datos`. En **Compartir**, tildá `Celular`, `TB330FU` y `server-franco`.
+2. En el servidor (`server-franco`), aceptá la carpeta en la ruta que prefieras. Al estar siempre prendido, hace de punto de encuentro aunque la PC esté apagada.
+3. En el celular y en la tablet, aceptá la carpeta en `Documents/Estudieitor/datos` (es la ruta que va a usar la app de Android).
+4. Conviene abrir el programa en la PC **antes** de compartir la carpeta, así la migración ya está hecha.
 
 ## Panel
 
@@ -101,7 +121,7 @@ Para no vaciar el panel por un problema local, a veces el programa manda lo nuev
 ### Cosas a tener en cuenta
 
 - **El panel refleja al programa, no al revés**: si restaurás una copia vieja de `planificador_datos.json`, todo lo que es más nuevo que esa copia desaparece del panel (sujeto a la guarda de borrado masivo). Los registros borrados así quedan marcados como borrados, no destruidos: si volvés a poner los datos más nuevos y el programa guarda o sincroniza de nuevo, vuelven a aparecer.
-- **Una sola copia del programa por carpeta de datos**: dos copias del programa (o dos PC) no deben compartir la misma carpeta de datos. No hay ningún bloqueo y el panel queda reflejando a quien haya guardado último. Además, una carpeta sincronizada (Nextcloud, Drive, etc.) copiaría también `panel-cliente.properties`, que tiene el token.
+- **Solo la PC le manda al Panel.** Lo que registrás en el celular o la tablet llega al Panel cuando la PC lo recibe por Syncthing y el programa está abierto (al abrirlo o al volver a la ventana). El token no está en la carpeta sincronizada.
 
 ### Qué muestra el panel
 
