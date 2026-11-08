@@ -130,3 +130,4 @@ Para que Franco pueda probarlo cuanto antes:
 
 - **Editar la misma materia en dos dispositivos sin conexión** (por ejemplo, asistencia en la tablet y una nota en la PC): como la materia entera es un archivo, gana la última y el otro cambio queda solo en la copia de conflicto. Es la regla que pidió Franco, pero acá abarca toda la materia. Las sesiones de estudio no tienen este problema.
 - Syncthing decide el "último" por la fecha de modificación del archivo, así que depende de que los relojes de los dispositivos estén bien.
+- **Para la etapa 2 (Android):** la PC compara y reescribe cada archivo con los campos que conoce su modelo. Un campo que agregue solo la app de Android no se ve como cambio y se pierde cuando la PC reescribe ese archivo. Los campos nuevos tienen que agregarse en los dos modelos a la vez. Además, el nombre de cada archivo tiene que ser `nombreArchivo(id)`: si no, la PC lo trata como ilegible.

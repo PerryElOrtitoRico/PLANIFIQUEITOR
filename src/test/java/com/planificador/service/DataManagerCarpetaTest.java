@@ -184,4 +184,65 @@ class DataManagerCarpetaTest {
         DataManager dm = new DataManager(tmp.resolve("share/planificador_datos.json"), carpeta(), List.of());
         assertEquals(1, dm.getConflictCount());
     }
+    static java.io.PrintStream silenciar() {
+        java.io.PrintStream err = System.err;
+        System.setErr(new java.io.PrintStream(java.io.OutputStream.nullOutputStream()));
+        return err;
+    }
+
+    @Test
+    void unaMigracionFallidaSeDeshaceYSeTerminaAlRecargar() throws IOException {
+        Path f = json();
+        Files.createDirectories(carpeta());
+        Files.writeString(carpeta().resolve("sesiones"), "un archivo donde va una carpeta");
+        java.io.PrintStream err = silenciar();
+        DataManager dm;
+        try {
+            dm = new DataManager(f, carpeta(), List.of());
+            assertNotNull(dm.getLoadWarning());
+            assertFalse(Files.exists(f.resolveSibling("migrado-a-carpeta")));
+            assertEquals(0, archivos(carpeta().resolve("materias")));
+            assertEquals(2, dm.getSubjects().size(), "los datos del JSON siguen en memoria");
+            assertFalse(dm.recargar());
+            assertEquals(2, dm.getSubjects().size(), "recargar con la carpeta rota no suelta los datos");
+        } finally {
+            System.setErr(err);
+        }
+        Files.delete(carpeta().resolve("sesiones"));
+        dm.recargar();
+        assertEquals(2, archivos(carpeta().resolve("materias")));
+        assertEquals(3, archivos(carpeta().resolve("sesiones")));
+        assertEquals(2, dm.getSubjects().size());
+    }
+
+    @Test
+    void recargarSinCambiosConservaLosObjetosQueTienenLasPantallas() throws IOException {
+        DataManager dm = new DataManager(json(), carpeta(), List.of());
+        Subject enPantalla = dm.getSubjectById("m1");
+        assertFalse(dm.recargar());
+        enPantalla.setName("Química");
+        dm.saveData();
+        assertTrue(Files.readString(carpeta().resolve("materias/m1.json")).contains("Química"));
+    }
+
+    @Test
+    void unGuardadoFallidoNoSePierdeAlRecargar() throws IOException {
+        DataManager dm = new DataManager(json(), carpeta(), List.of());
+        dm.setSaveErrorListener(m -> { });
+        Path sesiones = carpeta().resolve("sesiones");
+        var permisos = Files.getPosixFilePermissions(sesiones);
+        Files.setPosixFilePermissions(sesiones, java.nio.file.attribute.PosixFilePermissions.fromString("r-xr-xr-x"));
+        java.io.PrintStream err = silenciar();
+        try {
+            dm.addStudyLog(new StudyLog("l9", "m1", null, null, "2026-11-08", "10:00", 25));
+            assertFalse(dm.recargar());
+            assertEquals(4, dm.getStudyLogs().size(), "la sesión no guardada sigue en memoria");
+        } finally {
+            Files.setPosixFilePermissions(sesiones, permisos);
+            System.setErr(err);
+        }
+        dm.recargar();
+        assertTrue(Files.exists(sesiones.resolve("l9.json")));
+        assertEquals(4, dm.getStudyLogs().size());
+    }
 }

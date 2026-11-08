@@ -64,7 +64,7 @@ public class MainWindow extends JFrame {
         DataManager dm = DataManager.getInstance();
         // Tras un "no se pisaron" los datos se recargaron: las pantallas muestran lo nuevo.
         dm.setSaveErrorListener(msg -> SwingUtilities.invokeLater(() -> {
-            JOptionPane.showMessageDialog(this, msg, "Error al guardar", JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(this, msg, "Aviso al guardar", JOptionPane.WARNING_MESSAGE);
             refreshAllPanels();
         }));
         // Al volver a la ventana se relee la carpeta: trae lo que Syncthing sincronizó desde el celular o la tablet.

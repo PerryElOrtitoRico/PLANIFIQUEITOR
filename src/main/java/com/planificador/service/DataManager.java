@@ -27,6 +27,7 @@ public class DataManager {
     private String avisoMigracion;                   // no null si el JSON viejo estaba dañado o no se pudo migrar
     private String avisoCarpeta;                     // no null si hay archivos ilegibles en la carpeta
     private int conflictos;                          // copias *.sync-conflict-* de la última lectura
+    private boolean guardadoPendiente;               // el último guardado falló: lo que está en memoria todavía no llegó al disco
     private List<Subject> subjects = new ArrayList<>();
     private List<StudySession> studySessions = new ArrayList<>();
     private List<ImportantDate> importantDates = new ArrayList<>();
@@ -55,7 +56,8 @@ public class DataManager {
         migrateLegacyFile(legacyFiles);
         // Si la migración falló a medias, se deshizo y quedan en memoria los datos del JSON: el próximo guardado
         // los escribe todos en la carpeta (que está vacía), y si no hay guardado se reintenta al abrir otra vez.
-        if (migrarACarpeta()) cargarCarpeta();
+        if (migrarACarpeta()) cargarCarpeta(true);
+        else guardadoPendiente = true;   // los datos del JSON están solo en memoria hasta el próximo guardado
     }
 
     public static synchronized DataManager getInstance() {
@@ -138,18 +140,21 @@ public class DataManager {
     }
 
     /** Lee la carpeta y reemplaza los datos en memoria. Devuelve si cambió algo desde la lectura o escritura anterior. */
-    private boolean cargarCarpeta() {
+    private boolean cargarCarpeta(boolean siempre) {
         try {
             CarpetaDatos.Lectura l = carpeta.leer();
+            conflictos = l.conflictos();
+            avisoCarpeta = l.ilegibles().isEmpty() ? null
+                    : "Estos archivos de " + carpeta.raiz() + " no se pudieron leer y no se van a tocar:\n"
+                      + String.join("\n", l.ilegibles());
+            // Sin cambios en disco se conservan los objetos en memoria: las pantallas los tienen agarrados y
+            // editarlos tiene que seguir guardando.
+            if (!siempre && !l.cambio()) return false;
             subjects = l.datos().subjects();
             studySessions = l.datos().studySessions();
             importantDates = l.datos().importantDates();
             studyLogs = l.datos().studyLogs();
             pomodoroSettings = l.datos().pomodoroSettings();
-            conflictos = l.conflictos();
-            avisoCarpeta = l.ilegibles().isEmpty() ? null
-                    : "Estos archivos de " + carpeta.raiz() + " no se pudieron leer y no se van a tocar:\n"
-                      + String.join("\n", l.ilegibles());
             return l.cambio();
         } catch (IOException e) {
             e.printStackTrace();
@@ -160,7 +165,9 @@ public class DataManager {
 
     /** Relee la carpeta (lo que trajo Syncthing). Si cambió algo, avisa al oyente alGuardar y devuelve true. */
     public boolean recargar() {
-        boolean cambio = cargarCarpeta();
+        // Si el último guardado falló, primero se reintenta (sin diálogo): recargar antes perdería lo no guardado.
+        if (guardadoPendiente && !guardar(false)) return false;
+        boolean cambio = cargarCarpeta(false);
         if (cambio) notificar();
         return cambio;
     }
@@ -317,10 +324,16 @@ public class DataManager {
 
     /** Escribe en la carpeta solo lo que cambió; lo que cambió en otro dispositivo no se pisa y se recarga. */
     public void saveData() {
+        guardar(true);
+    }
+
+    /** @param avisar si avisa los errores por saveErrorListener. @return false si no se pudo escribir. */
+    private boolean guardar(boolean avisar) {
         try {
             CarpetaDatos.Escritura e = carpeta.escribir(datos());
+            guardadoPendiente = false;
             if (!e.noPisados().isEmpty()) {
-                cargarCarpeta();
+                cargarCarpeta(true);
                 if (saveErrorListener != null) {
                     saveErrorListener.accept("Algunos datos cambiaron en otro dispositivo mientras la app estaba abierta y no se pisaron ("
                             + e.noPisados().size() + "). Se cargó la versión más nueva; repetí el cambio si hacía falta.");
@@ -329,12 +342,15 @@ public class DataManager {
         } catch (IOException | RuntimeException e) {
             // RuntimeException: un dato inesperado no debe frenar los guardados en silencio
             e.printStackTrace();
-            if (saveErrorListener != null) {
-                saveErrorListener.accept("No se pudieron guardar los datos en " + carpeta.raiz() + ":\n" + e.getMessage());
+            guardadoPendiente = true;
+            if (avisar && saveErrorListener != null) {
+                saveErrorListener.accept("No se pudieron guardar los datos en " + carpeta.raiz() + ":\n" + e.getMessage()
+                        + "\nSe vuelve a intentar al guardar de nuevo o al volver a la ventana.");
             }
-            return;
+            return false;
         }
         notificar();
+        return true;
     }
 
     public void loadData() {

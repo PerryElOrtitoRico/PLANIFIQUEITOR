@@ -226,4 +226,37 @@ class CarpetaDatosTest {
         new CarpetaDatos(otra).escribir(ejemplo());
         assertEquals("propio\n", Files.readString(otra.resolve(".stignore")));
     }
+    @Test
+    void unArchivoSinIdEsIlegibleYNoFrenaElGuardado() throws IOException {
+        CarpetaDatos c = new CarpetaDatos(raiz);
+        c.escribir(ejemplo());
+        Files.writeString(raiz.resolve("sesiones/x.json"), "{\"subjectId\":\"m1\",\"minutes\":30}");
+        CarpetaDatos.Lectura l = c.leer();
+        assertEquals(List.of("sesiones/x.json"), l.ilegibles());
+        assertEquals(2, l.datos().studyLogs().size());
+        assertDoesNotThrow(() -> c.escribir(l.datos()));
+    }
+
+    @Test
+    void unArchivoConNombreDistintoDelIdEsIlegibleYNoSeRenombra() throws IOException {
+        CarpetaDatos c = new CarpetaDatos(raiz);
+        c.escribir(ejemplo());
+        String copia = Files.readString(raiz.resolve("sesiones/l1.json")).replace("25", "45");
+        Files.writeString(raiz.resolve("sesiones/a.json"), copia);
+        CarpetaDatos.Lectura l = c.leer();
+        assertEquals(List.of("sesiones/a.json"), l.ilegibles());
+        c.escribir(l.datos());
+        assertEquals(copia, Files.readString(raiz.resolve("sesiones/a.json")));
+        assertTrue(Files.readString(raiz.resolve("sesiones/l1.json")).contains("25"));
+    }
+
+    @Test
+    void ajustesIlegiblesNoDanConflictoEnCadaGuardado() throws IOException {
+        CarpetaDatos c = new CarpetaDatos(raiz);
+        c.escribir(ejemplo());
+        Files.writeString(raiz.resolve("ajustes/pomodoro.json"), "{no");
+        CarpetaDatos.Lectura l = c.leer();
+        assertTrue(c.escribir(l.datos()).noPisados().isEmpty());
+        assertEquals("{no", Files.readString(raiz.resolve("ajustes/pomodoro.json")));
+    }
 }

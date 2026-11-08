@@ -61,7 +61,7 @@ Los datos viven en una carpeta que sincroniza **Syncthing** con el celular y la 
 - **Archivos que no se pueden leer** (dañados, sin `id`, o cuyo nombre no es el de su `id`) se saltean, se avisan y nunca se pisan ni se borran. Mientras haya alguno, no se mandan borrados al Panel.
 
 ### Migración desde la versión anterior
-Antes todo estaba en `~/.local/share/planificador-estudio/planificador_datos.json` (o `$XDG_DATA_HOME/planificador-estudio/`). Al primer inicio, si la carpeta nueva está vacía, ese archivo se pasa a archivos sueltos **una sola vez**: queda la marca `migrado-a-carpeta` junto al JSON, y el JSON **no se borra** (queda como respaldo, pero el programa ya no lo usa). Si la migración falla a medias, se deshace y se vuelve a intentar. Si el JSON no se puede leer, se guarda una copia `planificador_datos.json.danado-<fecha>` y el programa arranca vacío.
+Antes todo estaba en `~/.local/share/planificador-estudio/planificador_datos.json` (o `$XDG_DATA_HOME/planificador-estudio/`). Al primer inicio, si la carpeta nueva está vacía, ese archivo se pasa a archivos sueltos **una sola vez**: queda la marca `migrado-a-carpeta` junto al JSON, y el JSON **no se borra** (queda como respaldo, pero el programa ya no lo usa). Si la migración falla a medias, se deshace, los datos quedan en memoria y se escriben en el próximo guardado o al volver a la ventana. Si el JSON no se puede leer, se guarda una copia `planificador_datos.json.danado-<fecha>` y el programa arranca vacío.
 
 Lo del Panel (`panel-cliente.properties`, con el token, `panel-cola.jsonl` y `panel-estado.json`) sigue en `~/.local/share/planificador-estudio/` y **no** se sincroniza.
 
@@ -120,7 +120,7 @@ Para no vaciar el panel por un problema local, a veces el programa manda lo nuev
 
 ### Cosas a tener en cuenta
 
-- **El panel refleja al programa, no al revés**: si restaurás una copia vieja de `planificador_datos.json`, todo lo que es más nuevo que esa copia desaparece del panel (sujeto a la guarda de borrado masivo). Los registros borrados así quedan marcados como borrados, no destruidos: si volvés a poner los datos más nuevos y el programa guarda o sincroniza de nuevo, vuelven a aparecer.
+- **El panel refleja al programa, no al revés**: si restaurás una copia vieja de la carpeta de datos (o borrás archivos de ella), todo lo que es más nuevo que esa copia desaparece del panel (sujeto a la guarda de borrado masivo). Los registros borrados así quedan marcados como borrados, no destruidos: si volvés a poner los datos más nuevos y el programa guarda o sincroniza de nuevo, vuelven a aparecer.
 - **Solo la PC le manda al Panel.** Lo que registrás en el celular o la tablet llega al Panel cuando la PC lo recibe por Syncthing y el programa está abierto (al abrirlo o al volver a la ventana). El token no está en la carpeta sincronizada.
 
 ### Qué muestra el panel
