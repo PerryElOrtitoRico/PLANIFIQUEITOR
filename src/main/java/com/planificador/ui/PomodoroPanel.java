@@ -33,6 +33,7 @@ public class PomodoroPanel extends JPanel {
     final JLabel timeLabel = new JLabel("25:00", SwingConstants.CENTER);
     final JLabel phaseLabel = new JLabel("Estudio", SwingConstants.CENTER);
     final JLabel cyclesLabel = new JLabel("Ciclos completos: 0", SwingConstants.CENTER);
+    final JTextField noteField = new JTextField();   // nota opcional que se guarda con el próximo ciclo de estudio
     final JButton startButton = new JButton("▶ Iniciar");
     final JButton skipButton = new JButton("⏭ Saltear");
     final JButton settingsButton = new JButton("Ajustes");
@@ -55,13 +56,15 @@ public class PomodoroPanel extends JPanel {
         setLayout(new BorderLayout(10, 10));
         setBorder(BorderFactory.createEmptyBorder(15, 15, 15, 15));
 
-        JPanel choose = new JPanel(new GridLayout(3, 2, 8, 6));
+        JPanel choose = new JPanel(new GridLayout(4, 2, 8, 6));
         choose.add(new JLabel("Sesión de hoy (opcional):"));
         choose.add(sessionCombo);
         choose.add(new JLabel("Materia:"));
         choose.add(subjectCombo);
         choose.add(new JLabel("Tema (opcional):"));
         choose.add(topicCombo);
+        choose.add(new JLabel("Nota de la sesión (opcional):"));
+        choose.add(noteField);
         add(choose, BorderLayout.NORTH);
 
         timeLabel.setFont(new Font("SansSerif", Font.BOLD, 56));
@@ -190,6 +193,8 @@ public class PomodoroPanel extends JPanel {
         String titulo = t != null ? t.getTitle() : (cycleSubject != null ? cycleDesc : null);
         int minutes = engine.minutesFor(PomodoroPhase.WORK);
         StudyLog log = StudyLogFactory.fromWorkCycle("pl_" + java.util.UUID.randomUUID(), s.getId(), t != null ? t.getId() : null, titulo, java.time.LocalDateTime.now(), minutes);
+        log.setNote(DataManager.limpiarNota(noteField.getText()));
+        noteField.setText("");
         DataManager.getInstance().addStudyLog(log);
         if (onSaved != null) onSaved.run();
     }

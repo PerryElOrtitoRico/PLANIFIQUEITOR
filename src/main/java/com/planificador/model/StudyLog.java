@@ -14,6 +14,7 @@ public class StudyLog {
     private String startTime;  // HH:mm
     private int minutes;
     private String source;     // null = Pomodoro; "guia" = sesión de la guía marcada como hecha; "cronometro" = cronómetro suelto
+    private String note;       // nota libre ("hice 5 ejercicios de la guía 3"); null = sin nota
 
     public StudyLog(String id, String subjectId, String topicId, String topicTitle,
                     String date, String startTime, int minutes) {
@@ -36,4 +37,6 @@ public class StudyLog {
     public String getSource() { return source; }
     public boolean isFromGuide() { return "guia".equals(source); }
     public void setSource(String source) { this.source = source; }
+    public String getNote() { return note; }
+    public void setNote(String note) { this.note = note; }
 }

@@ -58,3 +58,8 @@ Para cada entidad, el JSON deseado se compara con `conocido`:
 - Métodos que ya existen: `loadData()` (lee el JSON viejo a los campos), `notificar()` (llama al oyente `alGuardar`).
 - La migración del JSON viejo a la carpeta pasa **una sola vez**: se crea la marca `migrado-a-carpeta` junto a `dataFile`. El JSON no se borra.
 - `saveData()` escribe solo lo que cambió. Si algo no se pisó porque cambió en otro dispositivo, recarga la carpeta y avisa por `saveErrorListener` con un texto que dice "otro dispositivo". Si falla la escritura, avisa el error y **no** llama a `notificar()`.
+
+## 6. Nota de sesión
+- `StudyLog` tiene `getNote()` / `setNote(String)`; null = sin nota. Las sesiones viejas no tienen nota.
+- La nota se limpia siempre con `DataManager.limpiarNota(texto)`: recortada; vacía o null → null.
+- Interfaz: `PomodoroPanel.noteField` y `TimerDialog.noteField` (`JTextField`); el Historial muestra la columna "Nota".

@@ -10,6 +10,7 @@ import java.awt.*;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.time.format.TextStyle;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -29,6 +30,8 @@ public class HistorialPanel extends JPanel {
     private final JPanel grilla = new JPanel(new GridLayout(0, 7, 4, 4));
     private final JLabel detalleTitulo = new JLabel();
     private final JTable detalle = new JTable();
+    private final List<StudyLog> filas = new ArrayList<>();   // sesiones del día elegido, en el orden de la tabla
+    final JButton editarNota = new JButton("Editar nota…");
 
     public HistorialPanel() {
         setLayout(new BorderLayout(15, 15));
@@ -56,7 +59,13 @@ public class HistorialPanel extends JPanel {
         detalle.setRowHeight(24);
         detalle.setFillsViewportHeight(true);
         JPanel abajo = new JPanel(new BorderLayout(0, 5));
-        abajo.add(detalleTitulo, BorderLayout.NORTH);
+        JPanel tituloDetalle = new JPanel(new BorderLayout());
+        tituloDetalle.add(detalleTitulo, BorderLayout.CENTER);
+        tituloDetalle.add(editarNota, BorderLayout.EAST);
+        abajo.add(tituloDetalle, BorderLayout.NORTH);
+        editarNota.setEnabled(false);
+        editarNota.addActionListener(e -> editarNota());
+        detalle.getSelectionModel().addListSelectionListener(e -> editarNota.setEnabled(detalle.getSelectedRow() >= 0));
         abajo.add(new JScrollPane(detalle), BorderLayout.CENTER);
         abajo.setPreferredSize(new Dimension(0, 220));
 
@@ -96,7 +105,8 @@ public class HistorialPanel extends JPanel {
     }
 
     private void mostrarDetalle(List<StudyLog> logs) {
-        DefaultTableModel m = new DefaultTableModel(new String[]{"Hora", "Materia", "Tema", "Minutos", "Origen"}, 0) {
+        filas.clear();
+        DefaultTableModel m = new DefaultTableModel(new String[]{"Hora", "Materia", "Tema", "Minutos", "Origen", "Nota"}, 0) {
             @Override public boolean isCellEditable(int r, int c) { return false; }
         };
         int total = 0;
@@ -106,12 +116,24 @@ public class HistorialPanel extends JPanel {
             m.addRow(new Object[]{l.getStartTime() == null ? "—" : l.getStartTime(),
                     s != null ? s.getName() : (l.getSubjectId() == null ? "General" : "(materia eliminada)"),
                     l.getTopicTitle() == null ? "" : l.getTopicTitle(),
-                    l.getMinutes(), origen(l)});
+                    l.getMinutes(), origen(l), l.getNote() == null ? "" : l.getNote()});
+            filas.add(l);
             total += l.getMinutes();
         }
         detalle.setModel(m);
         detalleTitulo.setText(elegido.getDayOfMonth() + "/" + elegido.getMonthValue() + "/" + elegido.getYear()
                 + (total > 0 ? " — total " + formatear(total) : " — no hay estudio registrado"));
+    }
+
+    /** Pide la nota de la fila elegida (con la actual como valor inicial) y la guarda. */
+    private void editarNota() {
+        int fila = detalle.getSelectedRow();
+        if (fila < 0 || fila >= filas.size()) return;
+        StudyLog log = filas.get(fila);
+        String nueva = JOptionPane.showInputDialog(this, "Nota de la sesión:", log.getNote() == null ? "" : log.getNote());
+        if (nueva == null) return;   // canceló
+        DataManager.getInstance().setStudyLogNote(log.getId(), nueva);
+        refresh();
     }
 
     private static String origen(StudyLog l) {

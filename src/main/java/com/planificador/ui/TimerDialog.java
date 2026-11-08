@@ -15,6 +15,7 @@ public class TimerDialog extends JDialog {
     private final String description;    // puede ser null
     private final String sessionId;      // sesión de la guía de la que salió, o null
     private boolean registrado = false;
+    final JTextField noteField = new JTextField(20);   // nota opcional de la sesión
 
     public TimerDialog(Frame owner, int initialMinutes) {
         this(owner, initialMinutes, null, null, null);
@@ -42,6 +43,11 @@ public class TimerDialog extends JDialog {
         timerLabel.setFont(new Font("SansSerif", Font.BOLD, 48));
         centerPanel.add(timerLabel);
         add(centerPanel, BorderLayout.CENTER);
+        JPanel notaPanel = new JPanel(new BorderLayout(6, 0));
+        notaPanel.add(new JLabel("Nota (opcional):"), BorderLayout.WEST);
+        notaPanel.add(noteField, BorderLayout.CENTER);
+        notaPanel.setBorder(BorderFactory.createEmptyBorder(10, 15, 0, 15));
+        add(notaPanel, BorderLayout.NORTH);
 
         JPanel btnPanel = new JPanel(new FlowLayout());
         startPauseBtn = new JButton("▶ Iniciar");
@@ -99,6 +105,7 @@ public class TimerDialog extends JDialog {
         String id = (sessionId != null ? "cron_" + sessionId + "_" + fin.toLocalDate() + "_" : "cron_") + java.util.UUID.randomUUID();
         com.planificador.model.StudyLog log = com.planificador.service.StudyLogFactory.fromWorkCycle(id, subjectId, null, description, fin, minutos);
         log.setSource("cronometro");
+        log.setNote(com.planificador.service.DataManager.limpiarNota(noteField.getText()));
         com.planificador.service.DataManager.getInstance().addStudyLog(log);
         if (owner instanceof MainWindow mw) mw.refreshAllPanels();
     }
