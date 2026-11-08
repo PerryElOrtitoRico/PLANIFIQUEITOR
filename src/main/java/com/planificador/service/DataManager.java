@@ -53,8 +53,9 @@ public class DataManager {
         this.dataFile = dataFile;
         this.carpeta = new CarpetaDatos(carpeta);
         migrateLegacyFile(legacyFiles);
-        migrarACarpeta();
-        cargarCarpeta();
+        // Si la migración falló a medias, se deshizo y quedan en memoria los datos del JSON: el próximo guardado
+        // los escribe todos en la carpeta (que está vacía), y si no hay guardado se reintenta al abrir otra vez.
+        if (migrarACarpeta()) cargarCarpeta();
     }
 
     public static synchronized DataManager getInstance() {
@@ -108,22 +109,31 @@ public class DataManager {
     /**
      * Pasa el JSON viejo a la carpeta, una sola vez: solo si no existe la marca "migrado-a-carpeta" junto a
      * dataFile, la carpeta está vacía y el JSON existe y se lee bien. El JSON no se borra.
+     * @return false si falló a medias (se deshizo lo escrito y los datos del JSON quedan en memoria)
      */
-    void migrarACarpeta() {
+    boolean migrarACarpeta() {
         Path marca = dataFile.resolveSibling("migrado-a-carpeta");
         try {
-            if (Files.exists(marca) || !carpeta.vacia() || !Files.exists(dataFile)) return;
+            if (Files.exists(marca) || !carpeta.vacia() || !Files.exists(dataFile)) return true;
             loadData();
             if (loadWarning != null) {
                 avisoMigracion = loadWarning;
-                return;
+                return true;
             }
             carpeta.escribir(datos());
             Files.writeString(marca, LocalDate.now().toString(), StandardCharsets.UTF_8);
             System.err.println("Datos migrados de " + dataFile + " a " + carpeta.raiz());
+            return true;
         } catch (IOException e) {
             e.printStackTrace();
-            avisoMigracion = "No se pudieron pasar los datos de " + dataFile + " a " + carpeta.raiz() + ":\n" + e.getMessage();
+            try {
+                carpeta.deshacerLoEscrito(); // la carpeta vuelve a quedar vacía: se reintenta en el próximo arranque
+            } catch (IOException ex) {
+                ex.printStackTrace();
+            }
+            avisoMigracion = "No se pudieron pasar los datos de " + dataFile + " a " + carpeta.raiz() + ":\n" + e.getMessage()
+                    + "\nSe vuelve a intentar al guardar o la próxima vez que abras el programa.";
+            return false;
         }
     }
 
@@ -316,7 +326,8 @@ public class DataManager {
                             + e.noPisados().size() + "). Se cargó la versión más nueva; repetí el cambio si hacía falta.");
                 }
             }
-        } catch (IOException e) {
+        } catch (IOException | RuntimeException e) {
+            // RuntimeException: un dato inesperado no debe frenar los guardados en silencio
             e.printStackTrace();
             if (saveErrorListener != null) {
                 saveErrorListener.accept("No se pudieron guardar los datos en " + carpeta.raiz() + ":\n" + e.getMessage());
@@ -346,7 +357,7 @@ public class DataManager {
             clearAll();
             loadWarning = "No se pudo leer el archivo de datos (" + dataFile + ").\n"
                     + (backup != null ? "Se guardó una copia en:\n" + backup + "\n" : "No se pudo guardar una copia.\n")
-                    + "El programa arranca vacío; al guardar algo nuevo se reemplaza el archivo.";
+                    + "El programa arranca vacío; lo que cargues se guarda en la carpeta de datos y el archivo dañado queda como respaldo.";
         }
     }
 

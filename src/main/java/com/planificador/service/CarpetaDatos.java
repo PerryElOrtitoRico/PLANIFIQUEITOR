@@ -49,6 +49,8 @@ public final class CarpetaDatos {
     private final Gson gson = new GsonBuilder().setPrettyPrinting().create();
     /** Ruta relativa → JSON normalizado de lo último leído o escrito. Los ilegibles nunca entran. */
     private Map<Path, String> conocido = new HashMap<>();
+    /** Rutas relativas que no se pudieron leer en la última lectura: escribir() no las toca. */
+    private java.util.Set<Path> ilegiblesLeidos = new java.util.HashSet<>();
 
     public CarpetaDatos(Path raiz) {
         this.raiz = raiz;
@@ -102,6 +104,12 @@ public final class CarpetaDatos {
             for (Path rel : archivos(sub)) {
                 try {
                     Object o = parsear(rel);
+                    String id = idDe(o);
+                    // Sin id, o con un nombre que no es el de su id (archivo a mano, copia, otra app con un error):
+                    // se trata como ilegible para no renombrarlo ni pisar otra versión con el mismo id.
+                    if (id == null || id.isBlank() || !rel.getFileName().toString().equals(nombreArchivo(id))) {
+                        throw new JsonParseException("id ausente o distinto del nombre: " + rel);
+                    }
                     nuevo.put(rel, json(o));
                     if (o instanceof StudyLog l) sesiones.add(l);
                     else if (o instanceof Subject s) materias.add(s);
@@ -123,6 +131,8 @@ public final class CarpetaDatos {
             }
         }
 
+        ilegiblesLeidos = new java.util.HashSet<>();
+        for (String t : ilegibles) ilegiblesLeidos.add(Path.of(t));
         boolean cambio = !nuevo.equals(conocido());
         setConocido(nuevo);
         return new Lectura(new Datos(materias, guia, fechas, sesiones, ajustes), conflictos, ilegibles, cambio);
@@ -138,7 +148,7 @@ public final class CarpetaDatos {
         for (Map.Entry<Path, String> e : deseado.entrySet()) {
             Path rel = e.getKey();
             String antes = conocido().get(rel);
-            if (iguales(antes, e.getValue())) continue;
+            if (iguales(antes, e.getValue()) || ilegiblesLeidos.contains(rel)) continue;
             if (!iguales(enDisco(rel), antes)) {
                 noPisados.add(texto(rel));
                 continue;
@@ -163,6 +173,21 @@ public final class CarpetaDatos {
     }
 
     // ---- ayudas ya hechas ----
+
+    /** Id de una entidad leída; null para los ajustes (no tienen id). */
+    static String idDe(Object o) {
+        if (o instanceof StudyLog l) return l.getId();
+        if (o instanceof Subject s) return s.getId();
+        if (o instanceof StudySession s) return s.getId();
+        if (o instanceof ImportantDate f) return f.getId();
+        return null;
+    }
+
+    /** Borra lo que esta instancia escribió y conoce (para deshacer una migración a medias). */
+    void deshacerLoEscrito() throws IOException {
+        for (Path rel : new ArrayList<>(conocido.keySet())) borrar(rel);
+        conocido = new HashMap<>();
+    }
 
     /** Clase de la entidad según la subcarpeta de la ruta relativa. */
     static Class<?> tipo(Path rel) {
