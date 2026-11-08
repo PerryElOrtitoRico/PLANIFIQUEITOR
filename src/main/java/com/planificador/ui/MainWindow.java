@@ -41,6 +41,7 @@ public class MainWindow extends JFrame {
         tabs.addTab("Cursada", new CoursePanel(this));
         tabs.addTab("Historial", new HistorialPanel());
         setContentPane(tabs);
+        refreshAllPanels();   // título con las copias en conflicto, si hay
 
         JMenuBar barra = new JMenuBar();
         JMenu ver = new JMenu("Ver");
@@ -61,8 +62,18 @@ public class MainWindow extends JFrame {
         setJMenuBar(barra);
 
         DataManager dm = DataManager.getInstance();
-        dm.setSaveErrorListener(msg -> SwingUtilities.invokeLater(() ->
-                JOptionPane.showMessageDialog(this, msg, "Error al guardar", JOptionPane.ERROR_MESSAGE)));
+        // Tras un "no se pisaron" los datos se recargaron: las pantallas muestran lo nuevo.
+        dm.setSaveErrorListener(msg -> SwingUtilities.invokeLater(() -> {
+            JOptionPane.showMessageDialog(this, msg, "Error al guardar", JOptionPane.ERROR_MESSAGE);
+            refreshAllPanels();
+        }));
+        // Al volver a la ventana se relee la carpeta: trae lo que Syncthing sincronizó desde el celular o la tablet.
+        // No corre con un diálogo modal abierto (la ventana no se activa hasta que se cierra).
+        addWindowListener(new java.awt.event.WindowAdapter() {
+            @Override public void windowActivated(java.awt.event.WindowEvent e) {
+                if (DataManager.getInstance().recargar()) refreshAllPanels();
+            }
+        });
         if (dm.getLoadWarning() != null) {
             SwingUtilities.invokeLater(() ->
                     JOptionPane.showMessageDialog(this, dm.getLoadWarning(), "Datos dañados", JOptionPane.WARNING_MESSAGE));
@@ -78,6 +89,8 @@ public class MainWindow extends JFrame {
     }
 
     public void refreshAllPanels() {
+        int n = DataManager.getInstance().getConflictCount();
+        setTitle(n > 0 ? "ESTUDIEITOR — " + n + " copia(s) en conflicto en la carpeta de datos" : "ESTUDIEITOR");
         for (Component comp : tabs.getComponents()) {
             if (comp instanceof TodayPanel) ((TodayPanel) comp).refresh();
             if (comp instanceof WeeklyPanel) ((WeeklyPanel) comp).refresh();
