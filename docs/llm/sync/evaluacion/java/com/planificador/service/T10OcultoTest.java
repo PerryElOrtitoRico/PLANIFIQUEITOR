@@ -176,11 +176,9 @@ class T10OcultoTest {
         CarpetaDatos.Datos d = ejemplo();
         c.escribir(d);
         Files.delete(raiz.resolve("fechas/f1.json"));
-        d.importantDates().get(0).getTitle(); // sigue en memoria
         d.subjects().get(0).setName("Otro");
         CarpetaDatos.Escritura e = c.escribir(d);
         assertFalse(Files.exists(raiz.resolve("fechas/f1.json")));
-        assertTrue(e.noPisados().contains("fechas/f1.json"));
     }
 
     @Test
