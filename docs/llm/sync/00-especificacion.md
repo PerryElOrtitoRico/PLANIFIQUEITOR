@@ -52,3 +52,9 @@ Para cada entidad, el JSON deseado se compara con `conocido`:
 - Distinto → si `enDisco(ruta)` no es igual a `conocido.get(ruta)` (los dos pueden ser null), el archivo cambió en otro dispositivo: **no se escribe** y la ruta va a `noPisados`. Si es igual, se escribe y se actualiza `conocido`.
 - Ruta que está en `conocido` y ya no está en los datos → si `enDisco` es igual a lo conocido, se borra y se saca de `conocido`; si no, va a `noPisados`.
 - Los archivos ilegibles nunca están en `conocido`, así que nunca se pisan ni se borran.
+
+## 5. DataManager sobre la carpeta
+- Campos que ya existen: `dataFile` (JSON viejo), `carpeta` (`CarpetaDatos`), `subjects`, `studySessions`, `importantDates`, `studyLogs` (listas), `pomodoroSettings`, `loadWarning` (lo pone `loadData()` si el JSON viejo está dañado; también hace la copia `.danado-`), `avisoMigracion`, `avisoCarpeta`, `conflictos`, `saveErrorListener` (`Consumer<String>`, puede ser null).
+- Métodos que ya existen: `loadData()` (lee el JSON viejo a los campos), `notificar()` (llama al oyente `alGuardar`).
+- La migración del JSON viejo a la carpeta pasa **una sola vez**: se crea la marca `migrado-a-carpeta` junto a `dataFile`. El JSON no se borra.
+- `saveData()` escribe solo lo que cambió. Si algo no se pisó porque cambió en otro dispositivo, recarga la carpeta y avisa por `saveErrorListener` con un texto que dice "otro dispositivo". Si falla la escritura, avisa el error y **no** llama a `notificar()`.

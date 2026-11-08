@@ -111,7 +111,7 @@ class DataManagerTest {
     }
 
     @Test
-    void guardaYVuelveACargarDesdeElMismoArchivo() {
+    void guardaYVuelveACargarDesdeLaCarpeta() {
         Path nuevo = tmp.resolve("datos/planificador_datos.json");
         DataManager dm = new DataManager(nuevo, List.of());
         dm.addSubject(new Subject("s1", "Física", "#000000", "", ""));
@@ -223,7 +223,7 @@ class DataManagerTest {
         dm.setAlGuardar(() -> {
             llamadas.incrementAndGet();
             try {
-                visto.set(Files.readString(archivo, StandardCharsets.UTF_8));
+                visto.set(Files.readString(dm.getDataFolder().resolve("materias/m1.json"), StandardCharsets.UTF_8));
             } catch (IOException e) {
                 visto.set("error");
             }
@@ -272,7 +272,7 @@ class DataManagerTest {
 
         assertDoesNotThrow(() -> dm.addSubject(new Subject("m1", "Análisis", "#000000", "", "")));
 
-        assertTrue(Files.readString(archivo, StandardCharsets.UTF_8).contains("Análisis"));
+        assertTrue(Files.readString(dm.getDataFolder().resolve("materias/m1.json"), StandardCharsets.UTF_8).contains("Análisis"));
         assertTrue(errores.isEmpty());
     }
 
@@ -283,8 +283,9 @@ class DataManagerTest {
 
         dm.addSubject(new Subject("m1", "Análisis", "#000000", "", ""));
 
-        assertTrue(Files.readString(archivo, StandardCharsets.UTF_8).contains("Análisis"));
-        assertEquals(List.of("planificador_datos.json"), Files.list(archivo.getParent())
+        Path materias = dm.getDataFolder().resolve("materias");
+        assertTrue(Files.readString(materias.resolve("m1.json"), StandardCharsets.UTF_8).contains("Análisis"));
+        assertEquals(List.of("m1.json"), Files.list(materias)
                 .map(p -> p.getFileName().toString()).sorted().toList(), "sin temporales ni archivos extra");
     }
 }

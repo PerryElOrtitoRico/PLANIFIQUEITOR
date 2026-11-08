@@ -22,13 +22,17 @@ public class DataManager {
     private static final String APP_DIR = "planificador-estudio";
     private static DataManager instance;
 
-    private final Path dataFile;
+    private final Path dataFile;                     // JSON viejo (origen de la migración) y ancla local de los archivos del Panel
+    private final CarpetaDatos carpeta;              // carpeta sincronizada por Syncthing: un archivo por entidad
+    private String avisoMigracion;                   // no null si el JSON viejo estaba dañado o no se pudo migrar
+    private String avisoCarpeta;                     // no null si hay archivos ilegibles en la carpeta
+    private int conflictos;                          // copias *.sync-conflict-* de la última lectura
     private List<Subject> subjects = new ArrayList<>();
     private List<StudySession> studySessions = new ArrayList<>();
     private List<ImportantDate> importantDates = new ArrayList<>();
     private List<StudyLog> studyLogs = new ArrayList<>();
     private PomodoroSettings pomodoroSettings = new PomodoroSettings();
-    private String loadWarning;                      // no null si el archivo no se pudo leer
+    private String loadWarning;                      // lo pone loadData() si el JSON viejo no se pudo leer
     private java.util.function.Consumer<String> saveErrorListener;
     private volatile Runnable alGuardar;             // se llama tras cada guardado exitoso; null = ninguno
 
@@ -37,9 +41,20 @@ public class DataManager {
      * @param legacyFiles ubicaciones viejas: si dataFile no existe, se copia la modificada más recientemente
      */
     DataManager(Path dataFile, List<Path> legacyFiles) {
+        this(dataFile, dataFile.getParent().resolve("sync"), legacyFiles);
+    }
+
+    /**
+     * @param dataFile    JSON viejo: se migra una sola vez a la carpeta; junto a él quedan los archivos del Panel
+     * @param carpeta     carpeta sincronizada (un archivo por entidad)
+     * @param legacyFiles ubicaciones aún más viejas del JSON
+     */
+    DataManager(Path dataFile, Path carpeta, List<Path> legacyFiles) {
         this.dataFile = dataFile;
+        this.carpeta = new CarpetaDatos(carpeta);
         migrateLegacyFile(legacyFiles);
-        loadData();
+        migrarACarpeta();
+        cargarCarpeta();
     }
 
     public static synchronized DataManager getInstance() {
@@ -49,7 +64,7 @@ public class DataManager {
             List<Path> legacy = List.of(
                     Path.of(System.getProperty("user.dir")).resolve(FILE_NAME),
                     home.resolve(FILE_NAME));
-            instance = new DataManager(resolveDataFile(System.getenv(), home), legacy);
+            instance = new DataManager(resolveDataFile(System.getenv(), home), resolveDataFolder(home), legacy);
         }
         return instance;
     }
@@ -66,10 +81,91 @@ public class DataManager {
         return base.resolve(APP_DIR).resolve(FILE_NAME);
     }
 
+    /** Carpeta sincronizada: ~/Documentos/Carpeta personal/Estudieitor/Datos. */
+    static Path resolveDataFolder(Path home) {
+        return home.resolve("Documentos").resolve("Carpeta personal").resolve("Estudieitor").resolve("Datos");
+    }
+
     public Path getDataFile() { return dataFile; }
 
-    /** Aviso para mostrar al usuario si el archivo de datos estaba dañado; null si se leyó bien. */
-    public String getLoadWarning() { return loadWarning; }
+    public Path getDataFolder() { return carpeta.raiz(); }
+
+    /** Copias de conflicto de Syncthing en la última lectura de la carpeta. */
+    public int getConflictCount() { return conflictos; }
+
+    /** Aviso para mostrar al usuario si hay datos que no se pudieron leer; null si todo se leyó bien. */
+    public String getLoadWarning() {
+        if (avisoMigracion == null) return avisoCarpeta;
+        if (avisoCarpeta == null) return avisoMigracion;
+        return avisoMigracion + "\n\n" + avisoCarpeta;
+    }
+
+    /** Los datos en memoria, para CarpetaDatos. */
+    CarpetaDatos.Datos datos() {
+        return new CarpetaDatos.Datos(subjects, studySessions, importantDates, studyLogs, pomodoroSettings);
+    }
+
+    /**
+     * Pasa el JSON viejo a la carpeta, una sola vez: solo si no existe la marca "migrado-a-carpeta" junto a
+     * dataFile, la carpeta está vacía y el JSON existe y se lee bien. El JSON no se borra.
+     */
+    void migrarACarpeta() {
+        Path marca = dataFile.resolveSibling("migrado-a-carpeta");
+        try {
+            if (Files.exists(marca) || !carpeta.vacia() || !Files.exists(dataFile)) return;
+            loadData();
+            if (loadWarning != null) {
+                avisoMigracion = loadWarning;
+                return;
+            }
+            carpeta.escribir(datos());
+            Files.writeString(marca, LocalDate.now().toString(), StandardCharsets.UTF_8);
+            System.err.println("Datos migrados de " + dataFile + " a " + carpeta.raiz());
+        } catch (IOException e) {
+            e.printStackTrace();
+            avisoMigracion = "No se pudieron pasar los datos de " + dataFile + " a " + carpeta.raiz() + ":\n" + e.getMessage();
+        }
+    }
+
+    /** Lee la carpeta y reemplaza los datos en memoria. Devuelve si cambió algo desde la lectura o escritura anterior. */
+    private boolean cargarCarpeta() {
+        try {
+            CarpetaDatos.Lectura l = carpeta.leer();
+            subjects = l.datos().subjects();
+            studySessions = l.datos().studySessions();
+            importantDates = l.datos().importantDates();
+            studyLogs = l.datos().studyLogs();
+            pomodoroSettings = l.datos().pomodoroSettings();
+            conflictos = l.conflictos();
+            avisoCarpeta = l.ilegibles().isEmpty() ? null
+                    : "Estos archivos de " + carpeta.raiz() + " no se pudieron leer y no se van a tocar:\n"
+                      + String.join("\n", l.ilegibles());
+            return l.cambio();
+        } catch (IOException e) {
+            e.printStackTrace();
+            avisoCarpeta = "No se pudo leer la carpeta de datos " + carpeta.raiz() + ":\n" + e.getMessage();
+            return false;
+        }
+    }
+
+    /** Relee la carpeta (lo que trajo Syncthing). Si cambió algo, avisa al oyente alGuardar y devuelve true. */
+    public boolean recargar() {
+        boolean cambio = cargarCarpeta();
+        if (cambio) notificar();
+        return cambio;
+    }
+
+    /** Llama al oyente alGuardar; si falla, no rompe nada. */
+    private void notificar() {
+        Runnable oyente = alGuardar;
+        if (oyente != null) {
+            try {
+                oyente.run();
+            } catch (RuntimeException e) {
+                // un oyente que falla nunca rompe el guardado
+            }
+        }
+    }
 
     /** Quién se entera cuando no se puede guardar (la interfaz muestra un diálogo). */
     public void setSaveErrorListener(java.util.function.Consumer<String> listener) { this.saveErrorListener = listener; }
@@ -191,36 +287,25 @@ public class DataManager {
         saveData();
     }
 
+    /** Escribe en la carpeta solo lo que cambió; lo que cambió en otro dispositivo no se pisa y se recarga. */
     public void saveData() {
         try {
-            Files.createDirectories(dataFile.getParent());
-            // Se escribe a un temporal y se reemplaza: si se corta a mitad, el archivo anterior queda entero.
-            Path tmp = dataFile.resolveSibling(FILE_NAME + ".tmp");
-            try (Writer writer = Files.newBufferedWriter(tmp, StandardCharsets.UTF_8)) {
-                Gson gson = new GsonBuilder().setPrettyPrinting().create();
-                AppData data = new AppData(subjects, studySessions, importantDates, studyLogs, pomodoroSettings);
-                gson.toJson(data, writer);
-            }
-            try {
-                Files.move(tmp, dataFile, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
-            } catch (java.nio.file.AtomicMoveNotSupportedException e) {
-                Files.move(tmp, dataFile, StandardCopyOption.REPLACE_EXISTING);
+            CarpetaDatos.Escritura e = carpeta.escribir(datos());
+            if (!e.noPisados().isEmpty()) {
+                cargarCarpeta();
+                if (saveErrorListener != null) {
+                    saveErrorListener.accept("Algunos datos cambiaron en otro dispositivo mientras la app estaba abierta y no se pisaron ("
+                            + e.noPisados().size() + "). Se cargó la versión más nueva; repetí el cambio si hacía falta.");
+                }
             }
         } catch (IOException e) {
             e.printStackTrace();
             if (saveErrorListener != null) {
-                saveErrorListener.accept("No se pudieron guardar los datos en " + dataFile + ":\n" + e.getMessage());
+                saveErrorListener.accept("No se pudieron guardar los datos en " + carpeta.raiz() + ":\n" + e.getMessage());
             }
             return;
         }
-        Runnable oyente = alGuardar;
-        if (oyente != null) {
-            try {
-                oyente.run();
-            } catch (RuntimeException e) {
-                // un oyente que falla nunca rompe el guardado
-            }
-        }
+        notificar();
     }
 
     public void loadData() {
