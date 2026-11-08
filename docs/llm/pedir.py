@@ -206,6 +206,8 @@ def main():
     ap.add_argument("--metodos", action="store_true", help="pedir solo los métodos completados e injertarlos")
     ap.add_argument("--reextraer", action="store_true", help="no pide nada: vuelve a extraer la respuesta guardada")
     a = ap.parse_args()
+    global LLM
+    LLM = pathlib.Path(a.tarea).resolve().parent.parent  # carpeta de la etapa: <etapa>/tareas/<tarea>.md
 
     tarea_path = pathlib.Path(a.tarea)
     tarea_id = tarea_path.name.split("-")[0]
