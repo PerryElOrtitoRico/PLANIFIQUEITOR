@@ -226,7 +226,7 @@ public final class CarpetaDatos {
 
     /** Lee y parsea un archivo. Lanza JsonParseException si no es JSON válido o está vacío. */
     Object parsear(Path rel) throws IOException {
-        String texto = Files.readString(raiz.resolve(rel), StandardCharsets.UTF_8);
+        String texto = new String(Files.readAllBytes(raiz.resolve(rel)), StandardCharsets.UTF_8); // readString no existe en Android
         Object o = gson.fromJson(texto, tipo(rel));
         if (o == null) throw new JsonParseException("archivo vacío: " + rel);
         return o;
@@ -252,7 +252,7 @@ public final class CarpetaDatos {
         Path destino = raiz.resolve(rel);
         Files.createDirectories(destino.getParent());
         Path tmp = destino.resolveSibling(destino.getFileName() + ".tmp");
-        Files.writeString(tmp, contenido, StandardCharsets.UTF_8);
+        Files.write(tmp, contenido.getBytes(StandardCharsets.UTF_8));
         try {
             Files.move(tmp, destino, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
         } catch (AtomicMoveNotSupportedException e) {
@@ -269,7 +269,7 @@ public final class CarpetaDatos {
         Path f = raiz.resolve(".stignore");
         if (Files.exists(f)) return;
         Files.createDirectories(raiz);
-        Files.writeString(f, "*.tmp\n", StandardCharsets.UTF_8);
+        Files.write(f, "*.tmp\n".getBytes(StandardCharsets.UTF_8));
     }
 
     /** Ruta relativa con '/' para mostrar y para los tests. */

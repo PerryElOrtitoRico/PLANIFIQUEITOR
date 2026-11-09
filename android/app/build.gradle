@@ -1,0 +1,63 @@
+plugins {
+    id 'com.android.application'
+}
+
+// Los paquetes model y service de la PC (sin Swing) se copian a build/ y se compilan acá: las reglas del
+// Pomodoro, la carpeta sincronizada y DataManager son el mismo código en los dos. ui y panel quedan afuera.
+def copiarCompartido = tasks.register("copiarCompartido", Sync) {
+    from("../../src/main/java") {
+        include "com/planificador/model/**", "com/planificador/service/**"
+    }
+    into(layout.buildDirectory.dir("compartido/java"))
+}
+
+tasks.named('preBuild') { dependsOn(copiarCompartido) }
+
+android {
+    namespace 'com.planificador.app'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId "com.planificador.app"
+        minSdk 34  // el código compartido usa Path.of (API 34); el celular tiene Android 14 y la tablet 15
+        targetSdk 35
+        versionCode 1
+        versionName "1.0"
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    sourceSets {
+        main {
+            java.srcDir(layout.buildDirectory.dir("compartido/java"))
+        }
+    }
+
+    testOptions {
+        unitTests.all {
+            useJUnitPlatform()
+        }
+    }
+
+    lint {
+        abortOnError false
+    }
+}
+
+dependencies {
+    implementation 'androidx.appcompat:appcompat:1.7.0'
+    implementation 'com.google.android.material:material:1.12.0'
+    implementation 'com.google.code.gson:gson:2.10.1'
+
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher:1.10.2'
+}

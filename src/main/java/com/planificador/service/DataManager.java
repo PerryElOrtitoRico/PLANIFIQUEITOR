@@ -72,6 +72,11 @@ public class DataManager {
         return instance;
     }
 
+    /** Android: el singleton usa esta carpeta sincronizada y este archivo local (que no existe: no migra nada). */
+    public static synchronized void iniciar(Path dataFile, Path carpeta) {
+        instance = new DataManager(dataFile, carpeta, List.of());
+    }
+
     /** Solo para tests: el singleton pasa a usar este archivo (así ningún test toca los datos reales). */
     public static synchronized void initForTests(Path dataFile) {
         instance = new DataManager(dataFile, List.of());
@@ -123,7 +128,7 @@ public class DataManager {
                 return true;
             }
             carpeta.escribir(datos());
-            Files.writeString(marca, LocalDate.now().toString(), StandardCharsets.UTF_8);
+            Files.write(marca, LocalDate.now().toString().getBytes(StandardCharsets.UTF_8));
             System.err.println("Datos migrados de " + dataFile + " a " + carpeta.raiz());
             return true;
         } catch (IOException e) {

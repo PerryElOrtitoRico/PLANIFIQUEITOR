@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Grises de FlatLaf Light -->
+    <color name="fondo">#F2F2F2</color>
+    <color name="barra">#E4E4E4</color>
+    <color name="campo">#FFFFFF</color>
+    <color name="borde">#BDBDBD</color>
+    <color name="texto">#222222</color>
+    <color name="secundario">#555555</color>
+    <color name="foco">#1E5BD8</color>
+    <color name="error">#C62828</color>
+
+    <!-- Los cuatro discos del ícono: lo único con color -->
+    <color name="disco_rojo">#E53935</color>
+    <color name="disco_amarillo">#FDD835</color>
+    <color name="disco_azul">#1E5BD8</color>
+    <color name="disco_verde">#43A047</color>
+</resources>

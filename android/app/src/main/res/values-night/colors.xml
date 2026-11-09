@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Grises de FlatLaf Darcula -->
+    <color name="fondo">#2B2D30</color>
+    <color name="barra">#3C3F41</color>
+    <color name="campo">#46494B</color>
+    <color name="borde">#5E6060</color>
+    <color name="texto">#DCDCDC</color>
+    <color name="secundario">#A9A9A9</color>
+    <color name="foco">#4A88F0</color>
+    <color name="error">#EF5350</color>
+</resources>

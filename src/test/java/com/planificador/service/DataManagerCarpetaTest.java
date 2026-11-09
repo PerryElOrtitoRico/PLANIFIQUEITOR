@@ -245,4 +245,11 @@ class DataManagerCarpetaTest {
         assertTrue(Files.exists(sesiones.resolve("l9.json")));
         assertEquals(4, dm.getStudyLogs().size());
     }
+    @Test
+    void iniciarUsaEsaCarpeta() throws IOException {
+        new DataManager(tmp.resolve("pc/planificador_datos.json"), carpeta(), List.of())
+                .addSubject(new Subject("m1", "Física", "#000000", "", ""));
+        DataManager.iniciar(tmp.resolve("local/planificador_datos.json"), carpeta());
+        assertEquals(1, DataManager.getInstance().getSubjects().size());
+    }
 }
