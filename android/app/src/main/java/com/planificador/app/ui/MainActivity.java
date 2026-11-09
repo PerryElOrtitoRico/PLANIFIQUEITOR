@@ -77,9 +77,10 @@ public class MainActivity extends AppCompatActivity {
     void cronometroDe(com.planificador.model.StudySession s) {
         boolean[] ocupado = {false};
         ControlReloj.cambiar(this, x -> {
-            // Se decide dentro del candado: nunca pisa un reloj andando, a medias, en descanso, con nota o con ciclos.
+            // Se decide dentro del candado: nunca pisa un reloj andando, a medias, en descanso o con nota escrita.
+            // Los ciclos de un Pomodoro terminado sí se descartan (solo cambian cuándo llega el descanso largo).
             if (x != null && (x.corriendo || x.estudiadoSeg > 0 || x.restanteSeg != x.faseSeg || !x.esEstudio()
-                    || x.note != null || x.ciclos > 0)) {
+                    || x.note != null)) {
                 ocupado[0] = true;
                 return new com.planificador.app.logica.Reloj.Resultado(x, null, false);
             }

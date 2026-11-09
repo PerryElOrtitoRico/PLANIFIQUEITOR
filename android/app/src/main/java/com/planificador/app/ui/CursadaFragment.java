@@ -78,7 +78,7 @@ public class CursadaFragment extends PantallaBase {
                 raiz.addView(Vistas.fila(c, Vistas.texto(c, t), Vistas.boton(c, "Borrar", () -> Vistas.confirmar(c,
                         "¿Borrar " + t + "?", () -> {
                             Subject a = actual(s);
-                            if (a != null && a.getCourse() != null) a.getCourse().getEvaluations().removeIf(x -> e.getId().equals(x.getId()));
+                            if (a != null && a.getCourse() != null) a.getCourse().getEvaluations().removeIf(x -> java.util.Objects.equals(e.getId(), x.getId()));
                             guardar();
                         }))));
             }

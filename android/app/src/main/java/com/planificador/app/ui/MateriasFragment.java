@@ -73,7 +73,7 @@ public class MateriasFragment extends PantallaBase {
                         Vistas.confirmar(c, "¿Eliminar \"" + u.getTitle() + "\"" + (n > 0 ? " y sus " + n + " temas" : "") + "?",
                                 () -> {
                                     List<Unit> us = unidades(sid);
-                                    if (us != null) us.removeIf(x -> uid.equals(x.getId()));
+                                    if (us != null) us.removeIf(x -> java.util.Objects.equals(uid, x.getId()));
                                     guardar();
                                 });
                     })));
@@ -95,7 +95,7 @@ public class MateriasFragment extends PantallaBase {
                         })),
                         Vistas.boton(c, "Eliminar", () -> {
                             Unit a = unidad(sid, uid);
-                            if (a != null && a.getTopics() != null) a.getTopics().removeIf(x -> tid.equals(x.getId()));
+                            if (a != null && a.getTopics() != null) a.getTopics().removeIf(x -> java.util.Objects.equals(tid, x.getId()));
                             guardar();
                         })));
             }
@@ -121,13 +121,13 @@ public class MateriasFragment extends PantallaBase {
 
     private static Unit unidad(String sid, String uid) {
         List<Unit> us = unidades(sid);
-        if (us != null) for (Unit u : us) if (uid.equals(u.getId())) return u;
+        if (us != null) for (Unit u : us) if (java.util.Objects.equals(uid, u.getId())) return u;
         return null;
     }
 
     private static Topic tema(String sid, String uid, String tid) {
         Unit u = unidad(sid, uid);
-        if (u != null && u.getTopics() != null) for (Topic t : u.getTopics()) if (tid.equals(t.getId())) return t;
+        if (u != null && u.getTopics() != null) for (Topic t : u.getTopics()) if (java.util.Objects.equals(tid, t.getId())) return t;
         return null;
     }
 
