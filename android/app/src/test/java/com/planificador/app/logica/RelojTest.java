@@ -250,12 +250,16 @@ class RelojTest {
         assertNull(Reloj.conNota(e, "   ").note);
     }
     @Test
-    void cronometroDeUnaSesionDeLaGuiaUsaElPrefijo() {
-        EstadoReloj e = Reloj.nuevoCronometro(60, "m1", "Bernoulli", "cron_ss1_2026-11-09_");
-        assertTrue(e.idSesion.startsWith("cron_ss1_2026-11-09_"));
-        Reloj.Resultado r = Reloj.detener(Reloj.iniciar(e, T0, el(T0)), T0 + 30 * MIN);
-        assertTrue(r.sesion().getId().startsWith("cron_ss1_2026-11-09_"));
-        assertTrue(r.estado().idSesion.startsWith("cron_ss1_2026-11-09_"), "la próxima vuelta también");
-        assertNotEquals(r.sesion().getId(), r.estado().idSesion);
+    void cronometroDeUnaSesionDeLaGuiaUsaElIdDeLaPcConLaFechaDeFin() {
+        long medianoche = java.time.LocalDate.of(2026, 11, 10).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli();
+        EstadoReloj e = Reloj.iniciar(Reloj.nuevoCronometro(60, "m1", "Bernoulli", "ss1"), medianoche - 20 * MIN, el(medianoche - 20 * MIN));
+        Reloj.Resultado r = Reloj.detener(e, medianoche + 20 * MIN);
+        assertTrue(r.sesion().getId().startsWith("cron_ss1_2026-11-10_"), r.sesion().getId());
+        assertEquals("ss1", r.estado().sesionGuiaId, "la próxima vuelta sigue ligada");
+        // el mismo estado recuperado dos veces da el mismo id (no duplica)
+        EstadoReloj vencido = Reloj.iniciar(Reloj.nuevoCronometro(5, "m1", null, "ss1"), T0, el(T0));
+        assertEquals(Reloj.recuperar(vencido, AJUSTES, T0 + 6 * MIN, el(T0 + 6 * MIN)).sesion().getId(),
+                Reloj.recuperar(vencido, AJUSTES, T0 + 7 * MIN, el(T0 + 7 * MIN)).sesion().getId());
     }
+
 }

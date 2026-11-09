@@ -13,7 +13,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
-import java.util.function.Consumer;
 
 /** Materias con sus unidades y temas, como SubjectsPanel de la PC. */
 public class MateriasFragment extends PantallaBase {
@@ -48,47 +47,88 @@ public class MateriasFragment extends PantallaBase {
         String prof = s.getProfessor() == null || s.getProfessor().isEmpty() ? "Sin asignar" : s.getProfessor();
         t.addView(Vistas.texto(c, "Profesor/a: " + prof + (s.getSchedule() != null && !s.getSchedule().isEmpty()
                 ? " · Horario: " + s.getSchedule() : "")));
-        List<Unit> unidades = s.getUnits();
-        if (unidades == null) {   // materia llegada sin lista de unidades: se edita desde la PC
+        if (s.getUnits() == null) {   // materia llegada sin lista de unidades: se edita desde la PC
             t.addView(Vistas.texto(c, "Sin unidades."));
             return;
         }
-        for (int i = 0; i < unidades.size(); i++) {
-            Unit u = unidades.get(i);
+        String sid = s.getId();
+        List<Unit> lista = s.getUnits();
+        for (int i = 0; i < lista.size(); i++) {
+            Unit u = lista.get(i);
+            String uid = u.getId();
             int pos = i;
             t.addView(Vistas.subtitulo(c, "Unidad " + (i + 1) + ": " + u.getTitle()));
             t.addView(Vistas.fila(c,
-                    Vistas.boton(c, "▲", () -> mover(unidades, pos, -1)),
-                    Vistas.boton(c, "▼", () -> mover(unidades, pos, +1)),
+                    Vistas.boton(c, "▲", () -> mover(sid, pos, -1)),
+                    Vistas.boton(c, "▼", () -> mover(sid, pos, +1)),
                     Vistas.boton(c, "Renombrar", () -> pedirTexto(c, "Renombrar unidad", u.getTitle(), x -> {
-                        u.setTitle(x);
+                        Unit a = unidad(sid, uid);
+                        if (a == null) return BORRADA;
+                        a.setTitle(x);
                         guardar();
+                        return null;
                     })),
                     Vistas.boton(c, "Eliminar", () -> {
                         int n = u.getTopics() == null ? 0 : u.getTopics().size();
                         Vistas.confirmar(c, "¿Eliminar \"" + u.getTitle() + "\"" + (n > 0 ? " y sus " + n + " temas" : "") + "?",
-                                () -> { unidades.remove(u); guardar(); });
+                                () -> {
+                                    List<Unit> us = unidades(sid);
+                                    if (us != null) us.removeIf(x -> uid.equals(x.getId()));
+                                    guardar();
+                                });
                     })));
-            if (u.getTopics() != null) {
-                for (Topic tema : u.getTopics()) {
-                    t.addView(Vistas.casilla(c, tema.getTitle(), tema.isCompleted(), m -> {
-                        tema.setCompleted(m);
-                        guardar();
-                    }));
-                    t.addView(Vistas.fila(c,
-                            Vistas.boton(c, "Renombrar", () -> pedirTexto(c, "Renombrar tema", tema.getTitle(), x -> {
-                                tema.setTitle(x);
-                                guardar();
-                            })),
-                            Vistas.boton(c, "Eliminar", () -> { u.getTopics().remove(tema); guardar(); })));
-                }
-                t.addView(Vistas.boton(c, "Agregar temas", () -> agregarTemas(c, u)));
+            if (u.getTopics() == null) continue;
+            for (Topic tema : u.getTopics()) {
+                String tid = tema.getId();
+                t.addView(Vistas.casilla(c, tema.getTitle(), tema.isCompleted(), m -> {
+                    Topic a = tema(sid, uid, tid);
+                    if (a != null) a.setCompleted(m);
+                    guardar();
+                }));
+                t.addView(Vistas.fila(c,
+                        Vistas.boton(c, "Renombrar", () -> pedirTexto(c, "Renombrar tema", tema.getTitle(), x -> {
+                            Topic a = tema(sid, uid, tid);
+                            if (a == null) return BORRADA;
+                            a.setTitle(x);
+                            guardar();
+                            return null;
+                        })),
+                        Vistas.boton(c, "Eliminar", () -> {
+                            Unit a = unidad(sid, uid);
+                            if (a != null && a.getTopics() != null) a.getTopics().removeIf(x -> tid.equals(x.getId()));
+                            guardar();
+                        })));
             }
+            t.addView(Vistas.boton(c, "Agregar temas", () -> agregarTemas(c, sid, uid, u.getTitle())));
         }
         t.addView(Vistas.boton(c, "Agregar unidad", () -> pedirTexto(c, "Nueva unidad", "", x -> {
-            unidades.add(new Unit("u_" + UUID.randomUUID(), unidades.size() + 1, x));
+            List<Unit> us = unidades(sid);
+            if (us == null) return BORRADA;
+            us.add(new Unit("u_" + UUID.randomUUID(), us.size() + 1, x));
             guardar();
+            return null;
         })));
+    }
+
+    // Se busca todo por id al guardar: si mientras un diálogo estaba abierto se recargaron los datos (Syncthing),
+    // los objetos de la pantalla ya no son los que se guardan.
+    private static final String BORRADA = "Ya no existe: se borró en otro dispositivo.";
+
+    private static List<Unit> unidades(String sid) {
+        Subject s = DataManager.getInstance().getSubjectById(sid);
+        return s == null ? null : s.getUnits();
+    }
+
+    private static Unit unidad(String sid, String uid) {
+        List<Unit> us = unidades(sid);
+        if (us != null) for (Unit u : us) if (uid.equals(u.getId())) return u;
+        return null;
+    }
+
+    private static Topic tema(String sid, String uid, String tid) {
+        Unit u = unidad(sid, uid);
+        if (u != null && u.getTopics() != null) for (Topic t : u.getTopics()) if (tid.equals(t.getId())) return t;
+        return null;
     }
 
     private void nuevaMateria() {
@@ -110,11 +150,13 @@ public class MateriasFragment extends PantallaBase {
         });
     }
 
-    private void agregarTemas(Context c, Unit u) {
+    private void agregarTemas(Context c, String sid, String uid, String titulo) {
         EditText area = Vistas.campoMultilinea(c, "Un tema por línea");
         LinearLayout f = Vistas.columna(c);
-        f.addView(Vistas.etiquetado(c, "Temas de \"" + u.getTitle() + "\" (uno por línea):", area));
+        f.addView(Vistas.etiquetado(c, "Temas de \"" + titulo + "\" (uno por línea):", area));
         Vistas.formulario(c, "Agregar temas", f, () -> {
+            Unit u = unidad(sid, uid);
+            if (u == null || u.getTopics() == null) return BORRADA;
             for (String linea : area.getText().toString().split("\n")) {
                 if (!linea.trim().isEmpty()) u.addTopic(new Topic("t_" + UUID.randomUUID(), linea.trim(), false));
             }
@@ -123,20 +165,21 @@ public class MateriasFragment extends PantallaBase {
         });
     }
 
-    private void pedirTexto(Context c, String titulo, String actual, Consumer<String> alGuardar) {
+    /** `alGuardar` devuelve un error para mostrar o null si guardó. */
+    private void pedirTexto(Context c, String titulo, String actual, java.util.function.Function<String, String> alGuardar) {
         EditText e = Vistas.campo(c, titulo, actual, false);
         Vistas.formulario(c, titulo, e, () -> {
             String x = e.getText().toString().trim();
             if (x.isEmpty()) return "No puede quedar vacío.";
-            alGuardar.accept(x);
-            return null;
+            return alGuardar.apply(x);
         });
     }
 
-    private void mover(List<Unit> unidades, int i, int delta) {
+    private void mover(String sid, int i, int delta) {
+        List<Unit> us = unidades(sid);
         int j = i + delta;
-        if (j < 0 || j >= unidades.size()) return;
-        unidades.add(j, unidades.remove(i));
+        if (us == null || i >= us.size() || j < 0 || j >= us.size()) return;
+        us.add(j, us.remove(i));
         guardar();
     }
 

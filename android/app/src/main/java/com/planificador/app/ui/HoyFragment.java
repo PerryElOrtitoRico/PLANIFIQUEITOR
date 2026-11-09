@@ -23,7 +23,7 @@ public class HoyFragment extends PantallaBase {
         DataManager dm = DataManager.getInstance();
         LocalDate hoy = LocalDate.now();
         String dia = DiasSemana.clave(hoy);
-        raiz.addView(Vistas.titulo(c, "Hoy, " + DiasSemana.nombre(dia).toLowerCase() + " " + hoy.getDayOfMonth() + "/" + hoy.getMonthValue()));
+        raiz.addView(Vistas.titulo(c, "Hoy, " + DiasSemana.nombre(dia).toLowerCase(java.util.Locale.ROOT) + " " + hoy.getDayOfMonth() + "/" + hoy.getMonthValue()));
 
         List<ImportantDate> proximas = Countdown.upcoming(dm.getImportantDates(), hoy, 30);
         if (!proximas.isEmpty()) {

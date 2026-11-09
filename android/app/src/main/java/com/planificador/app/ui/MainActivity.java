@@ -75,14 +75,21 @@ public class MainActivity extends AppCompatActivity {
      * Si ya hay un reloj andando o a medias, no lo pisa.
      */
     void cronometroDe(com.planificador.model.StudySession s) {
-        com.planificador.app.logica.EstadoReloj e = ControlReloj.estado(this);
-        if (e != null && (e.corriendo || e.estudiadoSeg > 0 || e.restanteSeg != e.faseSeg || !e.esEstudio())) {
-            Vistas.aviso(this, "Ya hay un reloj en curso. Terminalo o pausalo y descartalo en la pestaña Reloj.");
+        boolean[] ocupado = {false};
+        ControlReloj.cambiar(this, x -> {
+            // Se decide dentro del candado: nunca pisa un reloj andando, a medias, en descanso, con nota o con ciclos.
+            if (x != null && (x.corriendo || x.estudiadoSeg > 0 || x.restanteSeg != x.faseSeg || !x.esEstudio()
+                    || x.note != null || x.ciclos > 0)) {
+                ocupado[0] = true;
+                return new com.planificador.app.logica.Reloj.Resultado(x, null, false);
+            }
+            return new com.planificador.app.logica.Reloj.Resultado(com.planificador.app.logica.Reloj.nuevoCronometro(
+                    s.getDurationMinutes(), s.getSubjectId(), s.getTopicDescription(), s.getId()), null, false);
+        });
+        if (ocupado[0]) {
+            Vistas.aviso(this, "Ya hay un reloj en curso. Terminalo o descartalo en la pestaña Reloj.");
             return;
         }
-        ControlReloj.cambiar(this, x -> new com.planificador.app.logica.Reloj.Resultado(
-                com.planificador.app.logica.Reloj.nuevoCronometro(s.getDurationMinutes(), s.getSubjectId(),
-                        s.getTopicDescription(), SesionDialogo.prefijoCronometro(s)), null, false));
         BottomNavigationView nav = findViewById(R.id.navegacion);
         nav.setSelectedItemId(R.id.nav_reloj);
     }

@@ -279,4 +279,14 @@ class DataManagerCarpetaTest {
         assertTrue(Files.exists(sesiones.resolve("l9.json")));
         assertEquals(4, dm.getStudyLogs().size());
     }
+    @Test
+    void borrarUnaMateriaConUnaSesionSinMateriaNoRompe() throws IOException {
+        DataManager dm = new DataManager(json(), carpeta(), List.of());
+        dm.addStudySession(new com.planificador.model.StudySession("g9", "lunes", null, "Sin materia", 30, false));
+        dm.addImportantDate(new com.planificador.model.ImportantDate("f9", "Sin materia", null, "2026-12-01", "tp", null));
+        dm.removeSubject("m1");
+        assertNull(dm.getSubjectById("m1"));
+        assertEquals(1, dm.getStudySessions().stream().filter(x -> x.getSubjectId() == null).count());
+        assertTrue(dm.getStudySessions().stream().noneMatch(x -> "m1".equals(x.getSubjectId())));
+    }
 }

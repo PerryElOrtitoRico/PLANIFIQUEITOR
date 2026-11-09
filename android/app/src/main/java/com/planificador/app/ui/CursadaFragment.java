@@ -76,7 +76,11 @@ public class CursadaFragment extends PantallaBase {
                 String t = (parcial ? "Parcial " : "TP ") + e.getNumber() + (parcial && e.isRetake() ? " (recuperatorio)" : "")
                         + ": " + CourseStatusCalculator.formatGrade(e.getGrade()) + (e.getDate() != null ? " · " + e.getDate() : "");
                 raiz.addView(Vistas.fila(c, Vistas.texto(c, t), Vistas.boton(c, "Borrar", () -> Vistas.confirmar(c,
-                        "¿Borrar " + t + "?", () -> { s.getCourse().getEvaluations().remove(e); guardar(); }))));
+                        "¿Borrar " + t + "?", () -> {
+                            Subject a = actual(s);
+                            if (a != null && a.getCourse() != null) a.getCourse().getEvaluations().removeIf(x -> e.getId().equals(x.getId()));
+                            guardar();
+                        }))));
             }
         }
         raiz.addView(Vistas.boton(c, "Nota", () -> nota(s)));
@@ -88,10 +92,23 @@ public class CursadaFragment extends PantallaBase {
                 Vistas.boton(c, "Presente", () -> asistencia(s, fecha, true)),
                 Vistas.boton(c, "Ausente", () -> asistencia(s, fecha, false))));
         if (s.getCourse() != null) {
-            List<AttendanceRecord> lista = s.getCourse().getAttendance();
-            for (AttendanceRecord r : new ArrayList<>(lista)) {
-                raiz.addView(Vistas.fila(c, Vistas.texto(c, r.getDate() + ": " + (r.isPresent() ? "Presente" : "Ausente")),
-                        Vistas.boton(c, "Borrar", () -> { lista.remove(r); guardar(); })));
+            for (AttendanceRecord r : new ArrayList<>(s.getCourse().getAttendance())) {
+                String t = r.getDate() + ": " + (r.isPresent() ? "Presente" : "Ausente");
+                raiz.addView(Vistas.fila(c, Vistas.texto(c, t), Vistas.boton(c, "Borrar", () -> Vistas.confirmar(c,
+                        "¿Borrar la asistencia del " + t + "?", () -> {
+                            Subject a = actual(s);
+                            if (a != null && a.getCourse() != null) {
+                                List<AttendanceRecord> l = a.getCourse().getAttendance();
+                                for (int k = 0; k < l.size(); k++) {
+                                    AttendanceRecord x = l.get(k);
+                                    if (x.isPresent() == r.isPresent() && java.util.Objects.equals(x.getDate(), r.getDate())) {
+                                        l.remove(k);
+                                        break;
+                                    }
+                                }
+                            }
+                            guardar();
+                        }))));
             }
         }
     }
@@ -133,7 +150,9 @@ public class CursadaFragment extends PantallaBase {
             try {
                 CourseRules nuevas = FormularioCursada.reglas(texto(asist), texto(regular), texto(promo), texto(parciales),
                         leer(casillas, previos), texto(clases));
-                s.getOrCreateCourse().setRules(nuevas);
+                Subject a = actual(s);
+                if (a == null) return BORRADA;
+                a.getOrCreateCourse().setRules(nuevas);
                 guardar();
                 return null;
             } catch (IllegalArgumentException ex) {
@@ -159,7 +178,9 @@ public class CursadaFragment extends PantallaBase {
             try {
                 Evaluation e = FormularioCursada.nota("ev_" + System.currentTimeMillis(), tipo.getSelectedItemPosition() == 0,
                         texto(numero), recup.isChecked(), texto(nota), texto(fecha));
-                s.getOrCreateCourse().getEvaluations().add(e);
+                Subject a = actual(s);
+                if (a == null) return BORRADA;
+                a.getOrCreateCourse().getEvaluations().add(e);
                 guardar();
                 return null;
             } catch (IllegalArgumentException ex) {
@@ -170,11 +191,23 @@ public class CursadaFragment extends PantallaBase {
 
     private void asistencia(Subject s, EditText fecha, boolean presente) {
         try {
-            s.getOrCreateCourse().getAttendance().add(FormularioCursada.asistencia(texto(fecha), presente));
+            Subject a = actual(s);
+            if (a == null) {
+                Vistas.aviso(requireContext(), BORRADA);
+                return;
+            }
+            a.getOrCreateCourse().getAttendance().add(FormularioCursada.asistencia(texto(fecha), presente));
             guardar();
         } catch (IllegalArgumentException ex) {
             Vistas.aviso(requireContext(), ex.getMessage());
         }
+    }
+
+    private static final String BORRADA = "La materia ya no existe: se borró en otro dispositivo.";
+
+    /** La materia en los datos actuales (puede haberse recargado mientras un diálogo estaba abierto). */
+    private static Subject actual(Subject s) {
+        return DataManager.getInstance().getSubjectById(s.getId());
     }
 
     private static List<Boolean> leer(LinearLayout casillas, List<Boolean> previos) {

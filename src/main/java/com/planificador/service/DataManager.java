@@ -289,8 +289,8 @@ public class DataManager {
 
     public void removeSubject(String subjectId) {
         subjects.removeIf(s -> s.getId().equals(subjectId));
-        studySessions.removeIf(sess -> sess.getSubjectId().equals(subjectId));
-        importantDates.removeIf(d -> d.getSubjectId().equals(subjectId));
+        studySessions.removeIf(sess -> subjectId.equals(sess.getSubjectId()));
+        importantDates.removeIf(d -> subjectId.equals(d.getSubjectId()));
         saveData();
     }
 

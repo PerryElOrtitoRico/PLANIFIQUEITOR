@@ -24,14 +24,14 @@ public class EstadoReloj {
     public long latidoMs;         // última vez que se supo que el reloj andaba
     public long latidoElapsedMs;
     public String idSesion;       // id de la sesión que se guarda al terminar o cortar esta fase
-    public String prefijoId;      // cronómetro de una sesión de la guía: "cron_<id>_<fecha>_" (como la PC); null = "cron_"/"pl_"
+    public String sesionGuiaId;   // cronómetro de una sesión de la guía (su id); null = suelto
 
     EstadoReloj copia() {
         EstadoReloj c = new EstadoReloj();
         c.modo = modo; c.subjectId = subjectId; c.topicId = topicId; c.topicTitle = topicTitle; c.note = note;
         c.phase = phase; c.ciclos = ciclos; c.corriendo = corriendo; c.finMs = finMs; c.restanteSeg = restanteSeg;
         c.faseSeg = faseSeg; c.tramoInicioMs = tramoInicioMs; c.estudiadoSeg = estudiadoSeg; c.latidoMs = latidoMs;
-        c.latidoElapsedMs = latidoElapsedMs; c.idSesion = idSesion; c.prefijoId = prefijoId;
+        c.latidoElapsedMs = latidoElapsedMs; c.idSesion = idSesion; c.sesionGuiaId = sesionGuiaId;
         return c;
     }
 

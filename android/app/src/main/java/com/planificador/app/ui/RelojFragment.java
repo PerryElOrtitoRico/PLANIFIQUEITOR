@@ -178,7 +178,7 @@ public class RelojFragment extends Fragment {
 
     /** Se puede cambiar materia, tema y minutos: fase sin empezar y no ligada a una sesión de la guía. */
     private static boolean libre(EstadoReloj e) {
-        return e == null || (fresco(e) && e.prefijoId == null);
+        return e == null || (fresco(e) && e.sesionGuiaId == null);
     }
 
     private void mostrar() {

@@ -45,7 +45,9 @@ public class Subject {
     public double getProgressPercentage() {
         int totalTopics = 0;
         int completedTopics = 0;
+        if (units == null) return 0.0;   // materia leída de un JSON sin unidades
         for (Unit unit : units) {
+            if (unit.getTopics() == null) continue;
             for (Topic topic : unit.getTopics()) {
                 totalTopics++;
                 if (topic.isCompleted()) completedTopics++;

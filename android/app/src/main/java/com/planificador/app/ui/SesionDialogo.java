@@ -10,7 +10,6 @@ import com.planificador.model.StudySession;
 import com.planificador.model.Subject;
 import com.planificador.service.DataManager;
 
-import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -31,7 +30,7 @@ final class SesionDialogo {
             if (sesion != null && materias.get(i).getId().equals(sesion.getSubjectId())) elegida = i;
         }
         String diaActual = sesion != null ? sesion.getDayOfWeek() : dia;
-        int diaElegido = Math.max(0, Arrays.asList(DiasSemana.CLAVES).indexOf(diaActual.toLowerCase()));
+        int diaElegido = Math.max(0, Arrays.asList(DiasSemana.CLAVES).indexOf(diaActual.toLowerCase(java.util.Locale.ROOT)));
 
         Spinner materia = Vistas.selector(c, nombres, elegida);
         Spinner diaSel = Vistas.selector(c, Arrays.asList(DiasSemana.NOMBRES), diaElegido);
@@ -54,15 +53,25 @@ final class SesionDialogo {
             if (sesion == null) {
                 dm.addStudySession(new StudySession("ss_" + System.currentTimeMillis(), diaClave, subjectId, t, min, false));
             } else {
-                sesion.setSubjectId(subjectId);
-                sesion.setDayOfWeek(diaClave);
-                sesion.setTopicDescription(t);
-                sesion.setDurationMinutes(min);
+                // Se busca de nuevo: si mientras el diálogo estaba abierto se recargaron los datos, el objeto viejo
+                // ya no es el que se guarda.
+                StudySession actual = buscar(sesion.getId());
+                if (actual == null) return "La sesión ya no existe: se borró en otro dispositivo.";
+                actual.setSubjectId(subjectId);
+                actual.setDayOfWeek(diaClave);
+                actual.setTopicDescription(t);
+                actual.setDurationMinutes(min);
                 dm.saveData();
             }
             despues.run();
             return null;
         });
+    }
+
+    /** La sesión de la guía con ese id en los datos actuales, o null. */
+    static StudySession buscar(String id) {
+        for (StudySession x : DataManager.getInstance().getStudySessions()) if (x.getId().equals(id)) return x;
+        return null;
     }
 
     static void borrar(Context c, StudySession s, Runnable despues) {
@@ -79,17 +88,13 @@ final class SesionDialogo {
                 + " (" + s.getDurationMinutes() + " min)";
         return Vistas.tarjeta(c, s.isCompleted(),
                 Vistas.casilla(c, texto, s.isCompleted(), m -> {
-                    DataManager.getInstance().setSessionCompleted(s, m);
+                    StudySession actual = buscar(s.getId());
+                    if (actual != null) DataManager.getInstance().setSessionCompleted(actual, m);
                     despues.run();
                 }),
                 Vistas.fila(c,
                         Vistas.boton(c, "▶ Cronómetro", cronometro),
                         Vistas.boton(c, "Editar", () -> abrir(c, s, s.getDayOfWeek(), despues)),
                         Vistas.boton(c, "Borrar", () -> borrar(c, s, despues))));
-    }
-
-    /** Prefijo del id del cronómetro de esta sesión hoy, el mismo que usa la PC. */
-    static String prefijoCronometro(StudySession s) {
-        return "cron_" + s.getId() + "_" + LocalDate.now() + "_";
     }
 }

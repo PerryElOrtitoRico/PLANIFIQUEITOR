@@ -38,13 +38,13 @@ public final class Reloj {
     }
 
     /**
-     * Cronómetro de una sesión de la guía: con prefijo "cron_<idSesión>_<fecha>_" la PC reconoce que esa sesión ya
-     * se cronometró ese día y no duplica los minutos al marcarla como hecha.
+     * Cronómetro de una sesión de la guía: la sesión guardada se llama "cron_<idSesión>_<fecha de fin>_…", como en la
+     * PC, así marcar esa sesión como hecha ese día no duplica los minutos.
      */
-    public static EstadoReloj nuevoCronometro(int minutos, String subjectId, String topicTitle, String prefijoId) {
+    public static EstadoReloj nuevoCronometro(int minutos, String subjectId, String topicTitle, String sesionGuiaId) {
         EstadoReloj e = new EstadoReloj();
         e.modo = "cronometro";
-        e.prefijoId = prefijoId;
+        e.sesionGuiaId = sesionGuiaId;
         e.subjectId = subjectId;
         e.topicTitle = topicTitle;
         empezarFase(e, minutos * 60);
@@ -179,12 +179,16 @@ public final class Reloj {
         c.faseSeg = segundos;
         c.restanteSeg = segundos;
         c.estudiadoSeg = 0;
-        c.idSesion = (c.prefijoId != null ? c.prefijoId : c.esCronometro() ? "cron_" : "pl_") + UUID.randomUUID();
+        c.idSesion = (c.esCronometro() ? "cron_" : "pl_") + UUID.randomUUID();
     }
 
     private static StudyLog sesion(EstadoReloj c, long finMs, int minutos) {
         LocalDateTime fin = LocalDateTime.ofInstant(Instant.ofEpochMilli(finMs), ZoneId.systemDefault());
-        StudyLog l = StudyLogFactory.fromWorkCycle(c.idSesion, c.subjectId, c.topicId, c.topicTitle, fin, minutos);
+        // Ligado a la guía: la fecha es la del fin (como TimerDialog de la PC); el resto del id es el de la fase,
+        // así recuperar dos veces el mismo estado da el mismo id.
+        String id = c.sesionGuiaId == null ? c.idSesion
+                : "cron_" + c.sesionGuiaId + "_" + fin.toLocalDate() + "_" + c.idSesion.substring("cron_".length());
+        StudyLog l = StudyLogFactory.fromWorkCycle(id, c.subjectId, c.topicId, c.topicTitle, fin, minutos);
         if (c.esCronometro()) l.setSource("cronometro");
         l.setNote(c.note);
         return l;
