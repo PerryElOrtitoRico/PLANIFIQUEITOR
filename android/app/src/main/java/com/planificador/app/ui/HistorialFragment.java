@@ -54,6 +54,7 @@ public class HistorialFragment extends Fragment {
     }
 
     private void refrescar() {
+        if (!isAdded() || getView() == null) return;   // p. ej. el diálogo de nota se cerró después de salir
         if (!Datos.asegurar(requireContext())) return;
         List<StudyLog> logs = DataManager.getInstance().getStudyLogs();
         View v = requireView();

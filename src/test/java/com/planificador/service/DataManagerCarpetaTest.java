@@ -259,4 +259,24 @@ class DataManagerCarpetaTest {
         dm.addStudyLog(new StudyLog("l9", "m1", null, null, "2026-11-08", "10:00", 25));
         assertEquals(4, dm.getStudyLogs().size());
     }
+    @Test
+    void addStudyLogAvisaSiNoSePudoGuardarYReintentaConElMismoId() throws IOException {
+        DataManager dm = new DataManager(json(), carpeta(), List.of());
+        dm.setSaveErrorListener(m -> { });
+        Path sesiones = carpeta().resolve("sesiones");
+        var permisos = Files.getPosixFilePermissions(sesiones);
+        Files.setPosixFilePermissions(sesiones, java.nio.file.attribute.PosixFilePermissions.fromString("r-xr-xr-x"));
+        java.io.PrintStream err = silenciar();
+        StudyLog l = new StudyLog("l9", "m1", null, null, "2026-11-08", "10:00", 25);
+        try {
+            assertFalse(dm.addStudyLog(l));
+            assertFalse(dm.addStudyLog(l), "el mismo id con el guardado pendiente no cuenta como guardado");
+        } finally {
+            Files.setPosixFilePermissions(sesiones, permisos);
+            System.setErr(err);
+        }
+        assertTrue(dm.addStudyLog(l));
+        assertTrue(Files.exists(sesiones.resolve("l9.json")));
+        assertEquals(4, dm.getStudyLogs().size());
+    }
 }

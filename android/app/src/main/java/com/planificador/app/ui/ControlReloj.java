@@ -78,7 +78,8 @@ public final class ControlReloj {
         if (r.sesion() != null) {
             // Primero la sesión y después el estado: un corte en el medio a lo sumo repite la misma sesión (mismo id).
             if (!Datos.asegurar(c)) return false;
-            DataManager.getInstance().addStudyLog(r.sesion());
+            // Si no llegó al disco (carpeta llena o sin acceso), el estado no avanza: el próximo intento la repite.
+            if (!DataManager.getInstance().addStudyLog(r.sesion())) return false;
         }
         guardar(c, r.estado());
         if (r.avisar()) avisar(c, r);
@@ -105,7 +106,13 @@ public final class ControlReloj {
             // servicio (cada 30 s) terminan la fase.
             if (am.canScheduleExactAlarms()) am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, e.finMs, pi);
             else am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, e.finMs, pi);
-            c.startForegroundService(servicio);
+            if (!ServicioReloj.activo) {
+                try {
+                    c.startForegroundService(servicio);
+                } catch (IllegalStateException ex) {   // Android no deja arrancarlo desde segundo plano
+                    Log.w(TAG, "No se pudo arrancar el servicio del reloj; la alarma igual termina la fase", ex);
+                }
+            }
         } else {
             am.cancel(pi);
             c.stopService(servicio);

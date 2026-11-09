@@ -20,6 +20,7 @@ import com.planificador.app.logica.EstadoReloj;
 public class ServicioReloj extends Service {
 
     private static final long LATIDO_MS = 30_000;
+    static volatile boolean activo;   // para no pedirle a Android que lo arranque de nuevo en cada latido
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final Runnable tarea = this::latir;
 
@@ -27,14 +28,22 @@ public class ServicioReloj extends Service {
     public int onStartCommand(Intent intent, int flags, int startId) {
         ControlReloj.crearCanales(this);
         EstadoReloj e = ControlReloj.estado(this);
-        startForeground(1, notificacion(e), ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE);
+        try {
+            startForeground(1, notificacion(e), ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE);
+        } catch (IllegalStateException ex) {   // arranque desde segundo plano rechazado: la alarma termina la fase
+            stopSelf();
+            return START_NOT_STICKY;
+        }
+        activo = true;
         if (e == null || !e.corriendo) {
             stopSelf();
             return START_NOT_STICKY;
         }
         handler.removeCallbacks(tarea);
         handler.postDelayed(tarea, LATIDO_MS);
-        return START_STICKY;
+        // NOT_STICKY: si Android lo mata, no lo revive desde segundo plano (eso falla en Android 12+); la alarma
+        // exacta termina la fase y la app lo vuelve a arrancar al abrirse.
+        return START_NOT_STICKY;
     }
 
     private void latir() {
@@ -69,6 +78,7 @@ public class ServicioReloj extends Service {
     @Override
     public void onDestroy() {
         handler.removeCallbacks(tarea);
+        activo = false;
         super.onDestroy();
     }
 

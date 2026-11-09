@@ -48,6 +48,7 @@ public class RelojFragment extends Fragment {
     private TextView fase, reloj, ciclos, sinMaterias;
     private Button iniciar, saltear, terminar;
     private boolean mostrando;   // evita que llenar los campos dispare sus oyentes
+    private String materiaCargada;   // materia cuyos temas están en el selector (el Spinner avisa tarde)
 
     @Override
     public View onCreateView(@NonNull LayoutInflater inf, ViewGroup parent, Bundle b) {
@@ -71,7 +72,10 @@ public class RelojFragment extends Fragment {
             mostrar();
         });
         materia.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
-            @Override public void onItemSelected(AdapterView<?> p, View view, int pos, long id) { if (!mostrando) cargarTemas(); }
+            @Override public void onItemSelected(AdapterView<?> p, View view, int pos, long id) {
+                Subject s = materiaElegida();
+                if (!mostrando && s != null && !s.getId().equals(materiaCargada)) cargarTemas();
+            }
             @Override public void onNothingSelected(AdapterView<?> p) { }
         });
         nota.addTextChangedListener(new TextWatcher() {
@@ -227,6 +231,7 @@ public class RelojFragment extends Fragment {
     private void cargarTemas() {
         Subject s = materiaElegida();
         List<String> t = s == null ? new ArrayList<>() : OpcionesReloj.temas(s);
+        materiaCargada = s == null ? null : s.getId();
         tema.setAdapter(new ArrayAdapter<>(requireContext(), android.R.layout.simple_spinner_dropdown_item, t));
     }
 

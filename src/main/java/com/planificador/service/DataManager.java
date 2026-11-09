@@ -237,11 +237,17 @@ public class DataManager {
         return studyLogs;
     }
 
-    public void addStudyLog(StudyLog log) {
-        // La misma sesión puede llegar dos veces (en Android, la alarma y la app recuperan el mismo reloj a la vez).
-        if (studyLogs.stream().anyMatch(l -> l.getId().equals(log.getId()))) return;
-        studyLogs.add(log);
+    /**
+     * Agrega la sesión y guarda. La misma sesión puede llegar dos veces (en Android, la alarma y la app recuperan el
+     * mismo reloj a la vez): un id repetido no se agrega de nuevo.
+     * @return true si la sesión quedó escrita en disco; false si el guardado falló (queda en memoria, pendiente)
+     */
+    public boolean addStudyLog(StudyLog log) {
+        boolean existe = studyLogs.stream().anyMatch(l -> l.getId().equals(log.getId()));
+        if (!existe) studyLogs.add(log);
+        else if (!guardadoPendiente) return true;
         saveData();
+        return !guardadoPendiente;
     }
 
     /** Texto de una nota: recortado; vacío o null → null. */

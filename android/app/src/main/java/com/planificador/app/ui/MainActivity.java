@@ -45,7 +45,8 @@ public class MainActivity extends AppCompatActivity {
         Datos.asegurar(this);
         DataManager.getInstance().recargar();
         ControlReloj.recuperar(this);
-        mostrar();
+        // Solo la primera vez: después cada pestaña se refresca sola en su onResume.
+        if (getSupportFragmentManager().findFragmentById(R.id.contenido) == null) mostrar();
     }
 
     /** Muestra la pestaña elegida. El Historial llega en la Tarea 5. */
@@ -53,6 +54,6 @@ public class MainActivity extends AppCompatActivity {
         BottomNavigationView nav = findViewById(R.id.navegacion);
         androidx.fragment.app.Fragment f = nav.getSelectedItemId() == R.id.nav_historial
                 ? new HistorialFragment() : new RelojFragment();
-        getSupportFragmentManager().beginTransaction().replace(R.id.contenido, f).commit();
+        getSupportFragmentManager().beginTransaction().replace(R.id.contenido, f).commitAllowingStateLoss();
     }
 }

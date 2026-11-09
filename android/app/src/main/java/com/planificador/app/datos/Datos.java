@@ -17,6 +17,7 @@ public final class Datos {
         if (!Rutas.tienePermiso()) return false;
         if (!iniciado) {
             DataManager.iniciar(Rutas.archivoLocal(c), Rutas.carpetaDatos());
+            DataManager.getInstance().setSaveErrorListener(m -> android.util.Log.w("Datos", m));
             iniciado = true;
         }
         return true;

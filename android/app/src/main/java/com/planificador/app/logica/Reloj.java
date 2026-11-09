@@ -153,6 +153,8 @@ public final class Reloj {
      * Si el teléfono se reinició desde el último latido. El instante de arranque (hora real − elapsed) es fijo
      * mientras el teléfono anda; si cambió, hubo un reinicio, sin importar cuánto lleve prendido ahora.
      */
+    // shortcut: un salto de la hora del sistema de más de 10 s (manual o por red) también cuenta como reinicio y
+    // corta la fase hasta el último latido; si pasa seguido, comparar además con el boot id del sistema.
     static boolean reiniciado(EstadoReloj e, long ahoraMs, long elapsedMs) {
         return (ahoraMs - elapsedMs) - (e.latidoMs - e.latidoElapsedMs) > MARGEN_ARRANQUE_MS;
     }
