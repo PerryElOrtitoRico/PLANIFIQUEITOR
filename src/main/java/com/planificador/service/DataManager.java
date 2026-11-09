@@ -238,6 +238,8 @@ public class DataManager {
     }
 
     public void addStudyLog(StudyLog log) {
+        // La misma sesión puede llegar dos veces (en Android, la alarma y la app recuperan el mismo reloj a la vez).
+        if (studyLogs.stream().anyMatch(l -> l.getId().equals(log.getId()))) return;
         studyLogs.add(log);
         saveData();
     }

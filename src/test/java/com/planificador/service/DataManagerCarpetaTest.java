@@ -252,4 +252,11 @@ class DataManagerCarpetaTest {
         DataManager.iniciar(tmp.resolve("local/planificador_datos.json"), carpeta());
         assertEquals(1, DataManager.getInstance().getSubjects().size());
     }
+    @Test
+    void unaSesionConUnIdQueYaExisteNoSeDuplica() throws IOException {
+        DataManager dm = new DataManager(json(), carpeta(), List.of());
+        dm.addStudyLog(new StudyLog("l9", "m1", null, null, "2026-11-08", "10:00", 25));
+        dm.addStudyLog(new StudyLog("l9", "m1", null, null, "2026-11-08", "10:00", 25));
+        assertEquals(4, dm.getStudyLogs().size());
+    }
 }

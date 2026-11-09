@@ -11,13 +11,12 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.planificador.app.R;
+import com.planificador.app.datos.Datos;
 import com.planificador.app.datos.Rutas;
 import com.planificador.service.DataManager;
 
 /** Pantalla principal: pestañas Reloj e Historial. Sin permiso de archivos muestra cómo darlo y no toca nada. */
 public class MainActivity extends AppCompatActivity {
-
-    private static boolean iniciado;   // DataManager se inicia una vez por proceso; después solo se recarga
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -37,12 +36,9 @@ public class MainActivity extends AppCompatActivity {
         findViewById(R.id.contenido).setVisibility(permiso ? View.VISIBLE : View.GONE);
         findViewById(R.id.navegacion).setVisibility(permiso ? View.VISIBLE : View.GONE);
         if (!permiso) return;
-        if (!iniciado) {
-            DataManager.iniciar(Rutas.archivoLocal(this), Rutas.carpetaDatos());
-            iniciado = true;
-        } else {
-            DataManager.getInstance().recargar();
-        }
+        Datos.asegurar(this);
+        DataManager.getInstance().recargar();
+        ControlReloj.recuperar(this);
         mostrar();
     }
 

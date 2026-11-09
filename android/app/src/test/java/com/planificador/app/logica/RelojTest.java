@@ -18,6 +18,14 @@ class RelojTest {
     static final long T0 = 1_762_600_000_000L;
     static final long MIN = 60_000L;
     static final PomodoroSettings AJUSTES = new PomodoroSettings(25, 5, 15, 4);
+    static final long ARRANQUE = T0 - 1_000_000L;     // el teléfono se prendió antes de T0
+    static final long REARRANQUE = T0 + 50 * MIN;     // y se reinició a los 50 min
+
+    /** SystemClock.elapsedRealtime() en ese momento, sin reinicio. */
+    static long el(long ms) { return ms - ARRANQUE; }
+
+    /** elapsedRealtime después del reinicio. */
+    static long el2(long ms) { return ms - REARRANQUE; }
 
     static String hora(long ms) {
         return LocalDateTime.ofInstant(Instant.ofEpochMilli(ms), ZoneId.systemDefault())
@@ -25,7 +33,7 @@ class RelojTest {
     }
 
     static EstadoReloj pomodoroCorriendo() {
-        return Reloj.iniciar(Reloj.nuevoPomodoro(AJUSTES, "m1", "t1", "Bernoulli"), T0, 1_000);
+        return Reloj.iniciar(Reloj.nuevoPomodoro(AJUSTES, "m1", "t1", "Bernoulli"), T0, el(T0));
     }
 
     @Test
@@ -64,10 +72,10 @@ class RelojTest {
     void cadaCuatroCiclosVieneElDescansoLargo() {
         EstadoReloj e = Reloj.nuevoPomodoro(AJUSTES, "m1", null, null);
         for (int i = 0; i < 4; i++) {
-            e = Reloj.terminarFase(Reloj.iniciar(e, T0, 1_000), AJUSTES).estado();   // estudio
+            e = Reloj.terminarFase(Reloj.iniciar(e, T0, el(T0)), AJUSTES).estado();   // estudio
             if (i < 3) {
                 assertEquals(PomodoroPhase.SHORT_BREAK, e.phase);
-                e = Reloj.terminarFase(Reloj.iniciar(e, T0, 1_000), AJUSTES).estado(); // descanso
+                e = Reloj.terminarFase(Reloj.iniciar(e, T0, el(T0)), AJUSTES).estado(); // descanso
             }
         }
         assertEquals(PomodoroPhase.LONG_BREAK, e.phase);
@@ -77,7 +85,7 @@ class RelojTest {
     @Test
     void unDescansoTerminadoNoGuardaYCadaEstudioTieneOtroId() {
         Reloj.Resultado r1 = Reloj.terminarFase(pomodoroCorriendo(), AJUSTES);
-        Reloj.Resultado r2 = Reloj.terminarFase(Reloj.iniciar(r1.estado(), T0 + 30 * MIN, 2_000), AJUSTES);
+        Reloj.Resultado r2 = Reloj.terminarFase(Reloj.iniciar(r1.estado(), T0 + 30 * MIN, el(T0 + 30 * MIN)), AJUSTES);
         assertNull(r2.sesion());
         assertTrue(r2.avisar());
         assertEquals(PomodoroPhase.WORK, r2.estado().phase);
@@ -88,16 +96,16 @@ class RelojTest {
     void elTiempoEnPausaNoCuenta() {
         EstadoReloj e = Reloj.pausar(pomodoroCorriendo(), T0 + 10 * MIN);
         assertEquals(15 * 60, Reloj.restante(e, T0 + 20 * MIN));
-        e = Reloj.iniciar(e, T0 + 30 * MIN, 2_000);
-        e = Reloj.latido(e, T0 + 35 * MIN, 5_000);
-        StudyLog l = Reloj.recuperar(e, AJUSTES, T0 + 90 * MIN, 100).sesion();
+        e = Reloj.iniciar(e, T0 + 30 * MIN, el(T0 + 30 * MIN));
+        e = Reloj.latido(e, T0 + 35 * MIN, el(T0 + 35 * MIN));
+        StudyLog l = Reloj.recuperar(e, AJUSTES, T0 + 90 * MIN, el2(T0 + 90 * MIN)).sesion();
         assertEquals(15, l.getMinutes());
     }
 
     @Test
     void trasReinicioGuardaHastaElUltimoLatido() {
-        EstadoReloj e = Reloj.latido(pomodoroCorriendo(), T0 + 12 * MIN, 5_000);
-        Reloj.Resultado r = Reloj.recuperar(e, AJUSTES, T0 + 60 * MIN, 100);
+        EstadoReloj e = Reloj.latido(pomodoroCorriendo(), T0 + 12 * MIN, el(T0 + 12 * MIN));
+        Reloj.Resultado r = Reloj.recuperar(e, AJUSTES, T0 + 60 * MIN, el2(T0 + 60 * MIN));
         assertEquals(12, r.sesion().getMinutes());
         assertEquals(hora(T0), r.sesion().getStartTime());
         assertEquals(e.idSesion, r.sesion().getId());
@@ -109,8 +117,8 @@ class RelojTest {
 
     @Test
     void trasReinicioConMenosDeUnMinutoNoGuarda() {
-        EstadoReloj e = Reloj.latido(pomodoroCorriendo(), T0 + 50_000, 5_000);
-        Reloj.Resultado r = Reloj.recuperar(e, AJUSTES, T0 + 60 * MIN, 100);
+        EstadoReloj e = Reloj.latido(pomodoroCorriendo(), T0 + 50_000, el(T0 + 50_000));
+        Reloj.Resultado r = Reloj.recuperar(e, AJUSTES, T0 + 60 * MIN, el2(T0 + 60 * MIN));
         assertNull(r.sesion());
         assertFalse(r.estado().corriendo);
     }
@@ -118,24 +126,24 @@ class RelojTest {
     @Test
     void trasReinicioEnUnDescansoNoGuarda() {
         EstadoReloj descanso = Reloj.terminarFase(pomodoroCorriendo(), AJUSTES).estado();
-        EstadoReloj e = Reloj.latido(Reloj.iniciar(descanso, T0 + 25 * MIN, 2_000), T0 + 28 * MIN, 5_000);
-        Reloj.Resultado r = Reloj.recuperar(e, AJUSTES, T0 + 60 * MIN, 100);
+        EstadoReloj e = Reloj.latido(Reloj.iniciar(descanso, T0 + 25 * MIN, el(T0 + 25 * MIN)), T0 + 28 * MIN, el(T0 + 28 * MIN));
+        Reloj.Resultado r = Reloj.recuperar(e, AJUSTES, T0 + 60 * MIN, el2(T0 + 60 * MIN));
         assertNull(r.sesion());
         assertFalse(r.estado().corriendo);
     }
 
     @Test
     void recuperarDosVecesNoDuplica() {
-        EstadoReloj e = Reloj.latido(pomodoroCorriendo(), T0 + 12 * MIN, 5_000);
-        Reloj.Resultado r = Reloj.recuperar(e, AJUSTES, T0 + 60 * MIN, 100);
-        assertNull(Reloj.recuperar(r.estado(), AJUSTES, T0 + 61 * MIN, 200).sesion());
+        EstadoReloj e = Reloj.latido(pomodoroCorriendo(), T0 + 12 * MIN, el(T0 + 12 * MIN));
+        Reloj.Resultado r = Reloj.recuperar(e, AJUSTES, T0 + 60 * MIN, el2(T0 + 60 * MIN));
+        assertNull(Reloj.recuperar(r.estado(), AJUSTES, T0 + 61 * MIN, el2(T0 + 61 * MIN)).sesion());
         // el aviso de arranque y la app leyendo el mismo estado a la vez: mismo id, mismo archivo
-        assertEquals(r.sesion().getId(), Reloj.recuperar(e, AJUSTES, T0 + 60 * MIN, 150).sesion().getId());
+        assertEquals(r.sesion().getId(), Reloj.recuperar(e, AJUSTES, T0 + 60 * MIN, el2(T0 + 60 * MIN)).sesion().getId());
     }
 
     @Test
     void alAbrirConLaFaseVencidaLaTermina() {
-        Reloj.Resultado r = Reloj.recuperar(pomodoroCorriendo(), AJUSTES, T0 + 40 * MIN, 5_000);
+        Reloj.Resultado r = Reloj.recuperar(pomodoroCorriendo(), AJUSTES, T0 + 40 * MIN, el(T0 + 40 * MIN));
         assertEquals(25, r.sesion().getMinutes());
         assertEquals(hora(T0), r.sesion().getStartTime());
         assertEquals(PomodoroPhase.SHORT_BREAK, r.estado().phase);
@@ -145,7 +153,7 @@ class RelojTest {
     @Test
     void recuperarConLaFaseEnCursoNoHaceNada() {
         EstadoReloj e = pomodoroCorriendo();
-        Reloj.Resultado r = Reloj.recuperar(e, AJUSTES, T0 + 10 * MIN, 5_000);
+        Reloj.Resultado r = Reloj.recuperar(e, AJUSTES, T0 + 10 * MIN, el(T0 + 10 * MIN));
         assertNull(r.sesion());
         assertFalse(r.avisar());
         assertTrue(r.estado().corriendo);
@@ -160,17 +168,17 @@ class RelojTest {
 
     @Test
     void saltearNoGuardaYSigueCorriendoSiCorria() {
-        EstadoReloj e = Reloj.saltear(pomodoroCorriendo(), AJUSTES, T0 + 3 * MIN);
+        EstadoReloj e = Reloj.saltear(pomodoroCorriendo(), AJUSTES, T0 + 3 * MIN, el(T0 + 3 * MIN));
         assertEquals(PomodoroPhase.SHORT_BREAK, e.phase);
         assertEquals(0, e.ciclos);
         assertTrue(e.corriendo);
         assertEquals(5 * 60, Reloj.restante(e, T0 + 3 * MIN));
-        assertEquals(PomodoroPhase.WORK, Reloj.saltear(e, AJUSTES, T0 + 4 * MIN).phase);
+        assertEquals(PomodoroPhase.WORK, Reloj.saltear(e, AJUSTES, T0 + 4 * MIN, el(T0 + 4 * MIN)).phase);
     }
 
     @Test
     void cronometroDetenidoGuardaLoEstudiado() {
-        EstadoReloj e = Reloj.iniciar(Reloj.nuevoCronometro(60, "m1", "Guía 3"), T0, 1_000);
+        EstadoReloj e = Reloj.iniciar(Reloj.nuevoCronometro(60, "m1", "Guía 3"), T0, el(T0));
         Reloj.Resultado r = Reloj.detener(e, T0 + 20 * MIN + 30_000);
         assertEquals(20, r.sesion().getMinutes());
         assertEquals("cronometro", r.sesion().getSource());
@@ -182,8 +190,8 @@ class RelojTest {
 
     @Test
     void cronometroTerminadoGuardaTodo() {
-        EstadoReloj e = Reloj.iniciar(Reloj.nuevoCronometro(5, "m1", null), T0, 1_000);
-        Reloj.Resultado r = Reloj.recuperar(e, AJUSTES, T0 + 6 * MIN, 5_000);
+        EstadoReloj e = Reloj.iniciar(Reloj.nuevoCronometro(5, "m1", null), T0, el(T0));
+        Reloj.Resultado r = Reloj.recuperar(e, AJUSTES, T0 + 6 * MIN, el(T0 + 6 * MIN));
         assertEquals(5, r.sesion().getMinutes());
         assertEquals("cronometro", r.sesion().getSource());
         assertTrue(r.avisar());
@@ -191,7 +199,7 @@ class RelojTest {
 
     @Test
     void cronometroConMenosDeUnMinutoNoGuarda() {
-        EstadoReloj e = Reloj.iniciar(Reloj.nuevoCronometro(60, "m1", null), T0, 1_000);
+        EstadoReloj e = Reloj.iniciar(Reloj.nuevoCronometro(60, "m1", null), T0, el(T0));
         assertNull(Reloj.detener(e, T0 + 59_000).sesion());
     }
 
@@ -203,5 +211,33 @@ class RelojTest {
         assertEquals("guía 3", r.sesion().getNote());
         assertNull(r.estado().note);
         assertEquals("guía 3", e.note, "el estado original no se toca");
+    }
+    @Test
+    void trasReinicioSeDetectaAunqueElTelefonoLleveMasTiempoPrendido() {
+        EstadoReloj e = Reloj.latido(pomodoroCorriendo(), T0 + 12 * MIN, el(T0 + 12 * MIN));
+        long otroArranque = T0 + 13 * MIN;   // se apagó a los 12 min y se prendió al toque, pero se desbloqueó tarde
+        Reloj.Resultado r = Reloj.recuperar(e, AJUSTES, T0 + 60 * MIN, T0 + 60 * MIN - otroArranque);
+        assertEquals(12, r.sesion().getMinutes());
+        assertFalse(r.avisar());
+    }
+
+    @Test
+    void trasReinicioNoSeGuardaMasQueLaFase() {
+        EstadoReloj e = Reloj.latido(pomodoroCorriendo(), T0 + 40 * MIN, el(T0 + 40 * MIN));  // la alarma no sonó
+        Reloj.Resultado r = Reloj.recuperar(e, AJUSTES, T0 + 60 * MIN, el2(T0 + 60 * MIN));
+        assertEquals(25, r.sesion().getMinutes());
+    }
+
+    @Test
+    void unLatidoDespuesDeUnReinicioNoBorraLaEvidencia() {
+        EstadoReloj e = Reloj.latido(pomodoroCorriendo(), T0 + 12 * MIN, el(T0 + 12 * MIN));
+        EstadoReloj tarde = Reloj.latido(e, T0 + 60 * MIN, el2(T0 + 60 * MIN));
+        assertEquals(12, Reloj.recuperar(tarde, AJUSTES, T0 + 61 * MIN, el2(T0 + 61 * MIN)).sesion().getMinutes());
+    }
+
+    @Test
+    void unRelojAtrasadoNoRestaEstudio() {
+        EstadoReloj e = Reloj.pausar(pomodoroCorriendo(), T0 - 5 * MIN);
+        assertEquals(0, e.estudiadoSeg);
     }
 }

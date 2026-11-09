@@ -57,7 +57,7 @@ public final class Reloj {
         EstadoReloj c = e.copia();
         if (!c.corriendo) return c;
         c.restanteSeg = restante(c, ahoraMs);
-        if (c.esEstudio()) c.estudiadoSeg += (int) ((ahoraMs - c.tramoInicioMs) / 1000);
+        if (c.esEstudio()) c.estudiadoSeg += tramo(c.tramoInicioMs, ahoraMs);
         c.corriendo = false;
         return c;
     }
@@ -93,7 +93,7 @@ public final class Reloj {
     /** Botón Terminar: guarda lo estudiado (si es al menos 1 minuto) y vuelve al inicio de la fase. */
     public static Resultado detener(EstadoReloj e, long ahoraMs) {
         EstadoReloj c = e.copia();
-        int seg = c.estudiadoSeg + (c.corriendo ? (int) ((ahoraMs - c.tramoInicioMs) / 1000) : 0);
+        int seg = c.estudiadoSeg + (c.corriendo ? tramo(c.tramoInicioMs, ahoraMs) : 0);
         StudyLog sesion = c.esEstudio() && seg >= 60 ? sesion(c, ahoraMs, seg / 60) : null;
         if (sesion != null) c.note = null;
         empezarFase(c, c.faseSeg);
@@ -101,16 +101,18 @@ public final class Reloj {
     }
 
     /** Como PomodoroEngine.skip(): no cuenta la fase ni suma ciclo. Si corría, sigue corriendo con la fase nueva. */
-    public static EstadoReloj saltear(EstadoReloj e, PomodoroSettings s, long ahoraMs) {
+    public static EstadoReloj saltear(EstadoReloj e, PomodoroSettings s, long ahoraMs, long elapsedMs) {
         EstadoReloj c = e.copia();
         boolean corria = c.corriendo;
         c.phase = c.phase == PomodoroPhase.WORK ? PomodoroPhase.SHORT_BREAK : PomodoroPhase.WORK;
         empezarFase(c, minutos(s, c.phase) * 60);
-        return corria ? iniciar(c, ahoraMs, e.latidoElapsedMs) : c;
+        return corria ? iniciar(c, ahoraMs, elapsedMs) : c;
     }
 
+    /** Si hubo un reinicio desde el último latido, no lo pisa: esa es la prueba de hasta cuándo anduvo. */
     public static EstadoReloj latido(EstadoReloj e, long ahoraMs, long elapsedMs) {
         EstadoReloj c = e.copia();
+        if (reiniciado(e, ahoraMs, elapsedMs)) return c;
         c.latidoMs = ahoraMs;
         c.latidoElapsedMs = elapsedMs;
         return c;
@@ -122,10 +124,11 @@ public final class Reloj {
      */
     public static Resultado recuperar(EstadoReloj e, PomodoroSettings s, long ahoraMs, long elapsedMs) {
         if (e == null || !e.corriendo) return new Resultado(e == null ? null : e.copia(), null, false);
-        if (elapsedMs < e.latidoElapsedMs) {
+        if (reiniciado(e, ahoraMs, elapsedMs)) {
             EstadoReloj c = e.copia();
-            int seg = c.estudiadoSeg + (int) ((c.latidoMs - c.tramoInicioMs) / 1000);
-            StudyLog sesion = c.esEstudio() && seg >= 60 ? sesion(c, c.latidoMs, seg / 60) : null;
+            // Hasta el último latido, pero nunca más allá del fin de la fase (si la alarma no sonó).
+            int seg = c.estudiadoSeg + tramo(c.tramoInicioMs, Math.min(c.latidoMs, c.finMs));
+            StudyLog sesion = c.esEstudio() && seg >= 60 ? sesion(c, Math.min(c.latidoMs, c.finMs), seg / 60) : null;
             if (sesion != null) c.note = null;
             empezarFase(c, c.faseSeg);
             return new Resultado(c, sesion, false);
@@ -135,6 +138,22 @@ public final class Reloj {
     }
 
     // ---- ayudas ----
+
+    /** Margen para comparar instantes de arranque: elapsedRealtime y la hora real no avanzan exactamente igual. */
+    private static final long MARGEN_ARRANQUE_MS = 10_000;
+
+    /**
+     * Si el teléfono se reinició desde el último latido. El instante de arranque (hora real − elapsed) es fijo
+     * mientras el teléfono anda; si cambió, hubo un reinicio, sin importar cuánto lleve prendido ahora.
+     */
+    static boolean reiniciado(EstadoReloj e, long ahoraMs, long elapsedMs) {
+        return (ahoraMs - elapsedMs) - (e.latidoMs - e.latidoElapsedMs) > MARGEN_ARRANQUE_MS;
+    }
+
+    /** Segundos entre dos instantes; nunca negativo (si la hora del sistema se atrasó). */
+    private static int tramo(long desdeMs, long hastaMs) {
+        return (int) Math.max(0, (hastaMs - desdeMs) / 1000);
+    }
 
     /** Deja la fase sin correr, completa, sin estudio acumulado y con un id de sesión nuevo. */
     private static void empezarFase(EstadoReloj c, int segundos) {
