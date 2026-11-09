@@ -240,4 +240,13 @@ class RelojTest {
         EstadoReloj e = Reloj.pausar(pomodoroCorriendo(), T0 - 5 * MIN);
         assertEquals(0, e.estudiadoSeg);
     }
+    @Test
+    void conNotaCambiaSoloLaNotaLimpia() {
+        EstadoReloj e = pomodoroCorriendo();
+        EstadoReloj n = Reloj.conNota(e, "  guía 3 ");
+        assertEquals("guía 3", n.note);
+        assertEquals(e.finMs, n.finMs);
+        assertNull(e.note);
+        assertNull(Reloj.conNota(e, "   ").note);
+    }
 }

@@ -137,6 +137,13 @@ public final class Reloj {
         return new Resultado(e.copia(), null, false);
     }
 
+    /** La nota que se está escribiendo, limpia como en la PC (recortada; vacía → null). */
+    public static EstadoReloj conNota(EstadoReloj e, String nota) {
+        EstadoReloj c = e.copia();
+        c.note = com.planificador.service.DataManager.limpiarNota(nota);
+        return c;
+    }
+
     // ---- ayudas ----
 
     /** Margen para comparar instantes de arranque: elapsedRealtime y la hora real no avanzan exactamente igual. */

@@ -5,7 +5,6 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.provider.Settings;
 import android.view.View;
-import android.widget.TextView;
 
 import androidx.appcompat.app.AppCompatActivity;
 
@@ -25,7 +24,14 @@ public class MainActivity extends AppCompatActivity {
         findViewById(R.id.dar_permiso).setOnClickListener(v -> startActivity(
                 new Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION, Uri.parse("package:" + getPackageName()))));
         BottomNavigationView nav = findViewById(R.id.navegacion);
-        nav.setOnItemSelectedListener(item -> { mostrar(); return true; });
+        nav.setOnItemSelectedListener(item -> {
+            nav.post(this::mostrar);   // el ítem elegido se actualiza después de este oyente
+            return true;
+        });
+        // Android 13+: sin este permiso no suenan ni se ven los avisos de fin de fase.
+        if (checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(new String[]{android.Manifest.permission.POST_NOTIFICATIONS}, 1);
+        }
     }
 
     @Override
@@ -42,15 +48,11 @@ public class MainActivity extends AppCompatActivity {
         mostrar();
     }
 
-    /** Texto de prueba hasta que existan las pantallas (Tareas 4 y 5). */
+    /** Muestra la pestaña elegida. El Historial llega en la Tarea 5. */
     private void mostrar() {
-        DataManager dm = DataManager.getInstance();
-        TextView t = new TextView(this);
-        t.setPadding(48, 48, 48, 48);
-        t.setText(dm.getSubjects().size() + " materias, " + dm.getStudyLogs().size() + " sesiones"
-                + (dm.getLoadWarning() != null ? "\n\n" + dm.getLoadWarning() : ""));
-        android.widget.FrameLayout c = findViewById(R.id.contenido);
-        c.removeAllViews();
-        c.addView(t);
+        BottomNavigationView nav = findViewById(R.id.navegacion);
+        androidx.fragment.app.Fragment f = nav.getSelectedItemId() == R.id.nav_historial
+                ? new HistorialFragment() : new RelojFragment();
+        getSupportFragmentManager().beginTransaction().replace(R.id.contenido, f).commit();
     }
 }
