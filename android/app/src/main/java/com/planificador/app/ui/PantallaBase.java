@@ -18,6 +18,9 @@ import com.planificador.app.datos.Datos;
  */
 abstract class PantallaBase extends Fragment {
 
+    /** Argumento: la pantalla se abrió desde Más y muestra "← Volver". */
+    static final String CON_VOLVER = "conVolver";
+
     LinearLayout raiz;
 
     @Override
@@ -39,6 +42,10 @@ abstract class PantallaBase extends Fragment {
     void refrescar() {
         if (!isAdded() || raiz == null || !Datos.asegurar(requireContext())) return;
         raiz.removeAllViews();
+        if (getArguments() != null && getArguments().getBoolean(CON_VOLVER)) {
+            raiz.addView(Vistas.boton(requireContext(), "← Volver",
+                    () -> requireActivity().getOnBackPressedDispatcher().onBackPressed()));
+        }
         dibujar(raiz);
     }
 

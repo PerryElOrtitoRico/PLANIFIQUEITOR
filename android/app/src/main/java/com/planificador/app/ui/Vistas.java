@@ -72,6 +72,9 @@ final class Vistas {
         Button b = new Button(c);
         b.setText(s);
         b.setAllCaps(false);
+        // Al ancho del texto: en una columna, sin esto se estira a todo el ancho (feo en la tablet).
+        b.setLayoutParams(new LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT));
         b.setOnClickListener(v -> accion.run());
         return b;
     }

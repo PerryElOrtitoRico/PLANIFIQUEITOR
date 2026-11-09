@@ -149,7 +149,6 @@ public class RelojFragment extends Fragment {
 
     private void iniciarOPausar() {
         Subject s = materiaElegida();
-        if (s == null) return;
         long ahora = System.currentTimeMillis();
         long elapsed = SystemClock.elapsedRealtime();
         ControlReloj.cambiar(requireContext(), e -> {
@@ -160,6 +159,7 @@ public class RelojFragment extends Fragment {
                 return new Reloj.Resultado(Reloj.iniciar(c, ahora, elapsed), null, false);
             }
             // Fase de estudio sin empezar: se arma con lo elegido en pantalla.
+            if (s == null) return new Reloj.Resultado(e, null, false);
             Topic t = OpcionesReloj.tema(s, tema.getSelectedItemPosition());
             EstadoReloj n = pomodoro.isChecked()
                     ? Reloj.nuevoPomodoro(ajustes(), s.getId(), t != null ? t.getId() : null, t != null ? t.getTitle() : null)
@@ -191,7 +191,9 @@ public class RelojFragment extends Fragment {
         requireView().findViewById(R.id.modo).setEnabled(libre);
         pomodoro.setEnabled(libre);
         requireView().findViewById(R.id.modo_cronometro).setEnabled(libre);
-        if (e != null) seleccionar(e);
+        boolean sinMateria = e != null && !seleccionar(e);   // p. ej. sesión de la guía de "General"
+        sinMaterias.setText(sinMateria ? "Materia: General (la sesión de la guía no tiene materia)"
+                : "Todavía no hay materias. Cargalas en la PC: llegan por Syncthing.");
         materia.setEnabled(libre);
         tema.setEnabled(libre);
         minutos.setEnabled(libre);
@@ -199,8 +201,8 @@ public class RelojFragment extends Fragment {
         if (e != null && !nota.getText().toString().equals(e.note == null ? "" : e.note) && !nota.hasFocus()) {
             nota.setText(e.note == null ? "" : e.note);
         }
-        sinMaterias.setVisibility(materias.isEmpty() ? View.VISIBLE : View.GONE);
-        iniciar.setEnabled(!materias.isEmpty());
+        sinMaterias.setVisibility(materias.isEmpty() || sinMateria ? View.VISIBLE : View.GONE);
+        iniciar.setEnabled(!materias.isEmpty() || !libre(e));   // un reloj ya armado arranca aunque no haya materias
         saltear.setVisibility(crono ? View.GONE : View.VISIBLE);
         terminar.setVisibility(crono ? View.VISIBLE : View.GONE);
         mostrando = false;
@@ -225,8 +227,8 @@ public class RelojFragment extends Fragment {
         }
     }
 
-    /** Pone en los selectores la materia y el tema del reloj en curso. */
-    private void seleccionar(EstadoReloj e) {
+    /** Pone en los selectores la materia y el tema del reloj en curso. false si esa materia no está en la lista. */
+    private boolean seleccionar(EstadoReloj e) {
         for (int i = 0; i < materias.size(); i++) {
             if (materias.get(i).getId().equals(e.subjectId)) {
                 if (materia.getSelectedItemPosition() != i) {
@@ -236,11 +238,12 @@ public class RelojFragment extends Fragment {
                 List<String> temas = OpcionesReloj.temas(materias.get(i));
                 for (int j = 1; j < temas.size(); j++) {
                     Topic t = OpcionesReloj.tema(materias.get(i), j);
-                    if (t.getId().equals(e.topicId)) tema.setSelection(j);
+                    if (java.util.Objects.equals(t.getId(), e.topicId)) tema.setSelection(j);
                 }
-                return;
+                return true;
             }
         }
+        return false;
     }
 
     private void cargarTemas() {

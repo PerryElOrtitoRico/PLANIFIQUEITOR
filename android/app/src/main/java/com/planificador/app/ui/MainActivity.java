@@ -24,6 +24,8 @@ public class MainActivity extends AppCompatActivity {
         findViewById(R.id.dar_permiso).setOnClickListener(v -> startActivity(
                 new Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION, Uri.parse("package:" + getPackageName()))));
         BottomNavigationView nav = findViewById(R.id.navegacion);
+        // Tocar la pestaña en la que ya estás (p. ej. Más desde Materias) vuelve a su pantalla principal.
+        nav.setOnItemReselectedListener(item -> nav.post(this::mostrar));
         nav.setOnItemSelectedListener(item -> {
             nav.post(this::mostrar);   // el ítem elegido se actualiza después de este oyente
             return true;
@@ -67,6 +69,9 @@ public class MainActivity extends AppCompatActivity {
     /** Abre una pantalla encima de la actual (desde Más); atrás vuelve. */
     void abrir(androidx.fragment.app.Fragment f) {
         if (getSupportFragmentManager().isStateSaved()) return;
+        Bundle args = new Bundle();
+        args.putBoolean(PantallaBase.CON_VOLVER, true);
+        f.setArguments(args);
         getSupportFragmentManager().beginTransaction().replace(R.id.contenido, f).addToBackStack(null).commit();
     }
 
