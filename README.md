@@ -149,9 +149,30 @@ Correr la prueba contra ese panel, desde otra terminal y en la carpeta del Plani
 PANEL_E2E_URL=http://localhost:8099 PANEL_E2E_TOKEN=demo mvn test -Dtest=PanelExtremoAExtremoManualTest
 ```
 
+## 📱 App de Android
+Para el celular y la tablet: **Pomodoro y cronómetro** con materia, tema y nota, y el **Historial** del mes, donde se ve y se cambia la nota de cada sesión. Lee y escribe la misma carpeta que la PC, así que lo que hacés en un lado aparece en el otro por Syncthing. Funciona sin internet y sin cuenta. El resto de las pantallas (Hoy, Guía, Materias, Fechas, Cursada, Ajustes) llega en la próxima etapa. Por ahora los ajustes del Pomodoro se cambian en la PC.
+
+### Requisitos e instalación
+- Android 14 o más nuevo, con depuración USB activada.
+- En la PC: el SDK de Android en `~/Android/Sdk` (`android/local.properties` con `sdk.dir=…`, que no se sube al repo).
+- El código de `model` y `service` de la PC se copia solo al compilar (tarea `copiarCompartido`): las reglas son las mismas en los dos.
+
+```bash
+cd android && ./gradlew test installDebug
+```
+
+La primera vez pide **acceso a todos los archivos** (para leer `Documents/Estudieitor/datos`, la carpeta de Syncthing) y permiso para mostrar notificaciones. Sin el permiso de archivos no lee ni escribe nada.
+
+### El reloj con la pantalla bloqueada
+- Mientras corre, hay una notificación con la cuenta regresiva y un botón **Pausar**. Al terminar cada fase suena, vibra y frena, igual que en la PC.
+- Si Android cierra la app, una alarma termina la fase a su hora y guarda el ciclo.
+- **Si el teléfono se apaga o se reinicia** con el reloj andando, al prenderlo se guardan los minutos de estudio hasta el último momento en que se supo que andaba (se anota cada 30 s). Menos de 1 minuto no se guarda, y los descansos tampoco.
+- Lo que se guarda en el teléfono y no se sincroniza (el estado del reloj) queda en el almacenamiento interno de la app.
+
 ## 🧪 Tests
 ```bash
 mvn test
+cd android && ./gradlew test   # la app de Android
 ```
 Los tests nunca tocan los datos reales: usan carpetas temporales (`XDG_DATA_HOME` apunta a `target/` y `java.awt.headless=true`). `PantallasTest` arma y dibuja todas las pantallas sin abrir ventanas; con `-Dcapturas=<carpeta>` guarda una imagen de cada una.
 
