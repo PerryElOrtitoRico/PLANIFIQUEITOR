@@ -49,11 +49,41 @@ public class MainActivity extends AppCompatActivity {
         if (getSupportFragmentManager().findFragmentById(R.id.contenido) == null) mostrar();
     }
 
-    /** Muestra la pestaña elegida. El Historial llega en la Tarea 5. */
+    /** Muestra la pestaña elegida (y descarta las pantallas abiertas desde Más). */
     private void mostrar() {
         BottomNavigationView nav = findViewById(R.id.navegacion);
-        androidx.fragment.app.Fragment f = nav.getSelectedItemId() == R.id.nav_historial
-                ? new HistorialFragment() : new RelojFragment();
-        getSupportFragmentManager().beginTransaction().replace(R.id.contenido, f).commitAllowingStateLoss();
+        int id = nav.getSelectedItemId();
+        androidx.fragment.app.Fragment f = id == R.id.nav_reloj ? new RelojFragment()
+                : id == R.id.nav_guia ? new GuiaFragment()
+                : id == R.id.nav_historial ? new HistorialFragment()
+                : id == R.id.nav_mas ? new MasFragment()
+                : new HoyFragment();
+        androidx.fragment.app.FragmentManager fm = getSupportFragmentManager();
+        if (fm.isStateSaved()) return;
+        fm.popBackStack(null, androidx.fragment.app.FragmentManager.POP_BACK_STACK_INCLUSIVE);
+        fm.beginTransaction().replace(R.id.contenido, f).commit();
+    }
+
+    /** Abre una pantalla encima de la actual (desde Más); atrás vuelve. */
+    void abrir(androidx.fragment.app.Fragment f) {
+        if (getSupportFragmentManager().isStateSaved()) return;
+        getSupportFragmentManager().beginTransaction().replace(R.id.contenido, f).addToBackStack(null).commit();
+    }
+
+    /**
+     * ▶ Cronómetro de una sesión de la guía: deja listo el cronómetro (sin arrancarlo) y va a la pestaña Reloj.
+     * Si ya hay un reloj andando o a medias, no lo pisa.
+     */
+    void cronometroDe(com.planificador.model.StudySession s) {
+        com.planificador.app.logica.EstadoReloj e = ControlReloj.estado(this);
+        if (e != null && (e.corriendo || e.estudiadoSeg > 0 || e.restanteSeg != e.faseSeg || !e.esEstudio())) {
+            Vistas.aviso(this, "Ya hay un reloj en curso. Terminalo o pausalo y descartalo en la pestaña Reloj.");
+            return;
+        }
+        ControlReloj.cambiar(this, x -> new com.planificador.app.logica.Reloj.Resultado(
+                com.planificador.app.logica.Reloj.nuevoCronometro(s.getDurationMinutes(), s.getSubjectId(),
+                        s.getTopicDescription(), SesionDialogo.prefijoCronometro(s)), null, false));
+        BottomNavigationView nav = findViewById(R.id.navegacion);
+        nav.setSelectedItemId(R.id.nav_reloj);
     }
 }

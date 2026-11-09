@@ -1,5 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:id="@+id/nav_hoy" android:title="Hoy" />
     <item android:id="@+id/nav_reloj" android:title="Reloj" />
+    <item android:id="@+id/nav_guia" android:title="Guía" />
     <item android:id="@+id/nav_historial" android:title="Historial" />
+    <item android:id="@+id/nav_mas" android:title="Más" />
 </menu>

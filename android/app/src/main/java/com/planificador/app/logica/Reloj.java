@@ -34,8 +34,17 @@ public final class Reloj {
     }
 
     public static EstadoReloj nuevoCronometro(int minutos, String subjectId, String topicTitle) {
+        return nuevoCronometro(minutos, subjectId, topicTitle, null);
+    }
+
+    /**
+     * Cronómetro de una sesión de la guía: con prefijo "cron_<idSesión>_<fecha>_" la PC reconoce que esa sesión ya
+     * se cronometró ese día y no duplica los minutos al marcarla como hecha.
+     */
+    public static EstadoReloj nuevoCronometro(int minutos, String subjectId, String topicTitle, String prefijoId) {
         EstadoReloj e = new EstadoReloj();
         e.modo = "cronometro";
+        e.prefijoId = prefijoId;
         e.subjectId = subjectId;
         e.topicTitle = topicTitle;
         empezarFase(e, minutos * 60);
@@ -170,7 +179,7 @@ public final class Reloj {
         c.faseSeg = segundos;
         c.restanteSeg = segundos;
         c.estudiadoSeg = 0;
-        c.idSesion = (c.esCronometro() ? "cron_" : "pl_") + UUID.randomUUID();
+        c.idSesion = (c.prefijoId != null ? c.prefijoId : c.esCronometro() ? "cron_" : "pl_") + UUID.randomUUID();
     }
 
     private static StudyLog sesion(EstadoReloj c, long finMs, int minutos) {

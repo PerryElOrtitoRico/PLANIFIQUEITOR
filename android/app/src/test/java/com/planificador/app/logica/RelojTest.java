@@ -249,4 +249,13 @@ class RelojTest {
         assertNull(e.note);
         assertNull(Reloj.conNota(e, "   ").note);
     }
+    @Test
+    void cronometroDeUnaSesionDeLaGuiaUsaElPrefijo() {
+        EstadoReloj e = Reloj.nuevoCronometro(60, "m1", "Bernoulli", "cron_ss1_2026-11-09_");
+        assertTrue(e.idSesion.startsWith("cron_ss1_2026-11-09_"));
+        Reloj.Resultado r = Reloj.detener(Reloj.iniciar(e, T0, el(T0)), T0 + 30 * MIN);
+        assertTrue(r.sesion().getId().startsWith("cron_ss1_2026-11-09_"));
+        assertTrue(r.estado().idSesion.startsWith("cron_ss1_2026-11-09_"), "la próxima vuelta también");
+        assertNotEquals(r.sesion().getId(), r.estado().idSesion);
+    }
 }

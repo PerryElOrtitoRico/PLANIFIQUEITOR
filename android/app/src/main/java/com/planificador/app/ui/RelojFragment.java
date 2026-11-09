@@ -95,6 +95,12 @@ public class RelojFragment extends Fragment {
             mostrar();
         });
         terminar.setOnClickListener(x -> {
+            EstadoReloj actual = ControlReloj.estado(requireContext());
+            if (actual != null && fresco(actual)) {   // sin arrancar: se descarta (p. ej. el de una sesión de la guía)
+                ControlReloj.cambiar(requireContext(), e -> new Reloj.Resultado(null, null, false));
+                mostrar();
+                return;
+            }
             int[] guardados = {0};
             ControlReloj.cambiar(requireContext(), e -> {
                 if (e == null) return new Reloj.Resultado(null, null, false);
@@ -148,7 +154,11 @@ public class RelojFragment extends Fragment {
         long elapsed = SystemClock.elapsedRealtime();
         ControlReloj.cambiar(requireContext(), e -> {
             if (e != null && e.corriendo) return new Reloj.Resultado(Reloj.pausar(e, ahora), null, false);
-            if (e != null && !fresco(e)) return new Reloj.Resultado(Reloj.iniciar(e, ahora, elapsed), null, false);
+            if (e != null && !libre(e)) {
+                // A medias, en descanso o ligado a una sesión de la guía: arranca tal cual (con la nota de pantalla).
+                EstadoReloj c = fresco(e) ? Reloj.conNota(e, nota.getText().toString()) : e;
+                return new Reloj.Resultado(Reloj.iniciar(c, ahora, elapsed), null, false);
+            }
             // Fase de estudio sin empezar: se arma con lo elegido en pantalla.
             Topic t = OpcionesReloj.tema(s, tema.getSelectedItemPosition());
             EstadoReloj n = pomodoro.isChecked()
@@ -161,15 +171,20 @@ public class RelojFragment extends Fragment {
         mostrar();
     }
 
-    /** Fase de estudio que todavía no arrancó: se puede cambiar materia, tema y minutos. */
+    /** Fase de estudio que todavía no arrancó. */
     private static boolean fresco(EstadoReloj e) {
         return !e.corriendo && e.esEstudio() && e.estudiadoSeg == 0 && e.restanteSeg == e.faseSeg;
+    }
+
+    /** Se puede cambiar materia, tema y minutos: fase sin empezar y no ligada a una sesión de la guía. */
+    private static boolean libre(EstadoReloj e) {
+        return e == null || (fresco(e) && e.prefijoId == null);
     }
 
     private void mostrar() {
         EstadoReloj e = ControlReloj.estado(requireContext());
         mostrando = true;
-        boolean libre = e == null || fresco(e);
+        boolean libre = libre(e);
         boolean crono = e != null ? e.esCronometro() : !pomodoro.isChecked();
         pomodoro.setChecked(!crono);
         requireView().<RadioButton>findViewById(R.id.modo_cronometro).setChecked(crono);
