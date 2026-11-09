@@ -150,7 +150,16 @@ PANEL_E2E_URL=http://localhost:8099 PANEL_E2E_TOKEN=demo mvn test -Dtest=PanelEx
 ```
 
 ## 📱 App de Android
-Para el celular y la tablet: **Pomodoro y cronómetro** con materia, tema y nota, y el **Historial** del mes, donde se ve y se cambia la nota de cada sesión. Lee y escribe la misma carpeta que la PC, así que lo que hacés en un lado aparece en el otro por Syncthing. Funciona sin internet y sin cuenta. El resto de las pantallas (Hoy, Guía, Materias, Fechas, Cursada, Ajustes) llega en la próxima etapa. Por ahora los ajustes del Pomodoro se cambian en la PC.
+Para el celular y la tablet, con el mismo control que la PC. Lee y escribe la misma carpeta, así que lo que hacés en un lado aparece en el otro por Syncthing. Funciona sin internet y sin cuenta.
+
+Abajo hay cinco pestañas: **Hoy · Reloj · Guía · Historial · Más**.
+- **Hoy**: la cuenta regresiva de los próximos 30 días y las sesiones de la guía de hoy, para marcarlas, editarlas, borrarlas o largar su cronómetro (**▶ Cronómetro**).
+- **Reloj**: Pomodoro y cronómetro con materia, tema y nota.
+- **Guía**: los 7 días con sus sesiones y un **+** por día.
+- **Historial**: el calendario del mes, con la nota editable de cada sesión.
+- **Más**: Materias (unidades y temas), Fechas clave, Progreso, Tiempo, Cursada (reglas, notas y asistencia) y Ajustes del Pomodoro.
+
+El cronómetro de una sesión de la guía guarda la sesión con el mismo id que en la PC (`cron_<sesión>_<fecha>_…`). Así, marcarla como hecha ese día no duplica los minutos.
 
 ### Requisitos e instalación
 - Android 14 o más nuevo, con depuración USB activada.
